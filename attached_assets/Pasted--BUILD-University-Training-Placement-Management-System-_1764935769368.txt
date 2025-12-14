@@ -1,0 +1,639 @@
+# BUILD: University Training & Placement Management System - MVP
+
+## Project Overview
+Build a full-stack web application for university Training & Placement cells to manage campus placements. This system will have two user roles: T&P Coordinators (admins) and Students.
+
+## Tech Stack Requirements
+- **Frontend:** React 18 + Vite + Tailwind CSS
+- **Backend:** Node.js + Express
+- **Database:** PostgreSQL
+- **Authentication:** JWT with httpOnly cookies
+- **AI Integration:** Google Gemini 1.5 Flash API for resume optimization
+- **File Upload:** Multer for resume PDFs
+- **PDF Parsing:** pdf-parse library
+
+## MVP Feature Requirements
+
+### Phase 1: Core Foundation (Build This First)
+
+#### 1. Authentication System
+```javascript
+// Two user roles: 'coordinator' and 'student'
+// JWT-based auth with role-based access control
+```
+
+**Coordinator Registration:**
+- Email, password, name, university name
+- Creates a university record
+- Generates unique invite code for students
+- Role: 'coordinator'
+
+**Student Registration:**
+- Email, password, name
+- Roll number (unique per university)
+- Branch (dropdown: CSE, IT, ECE, EEE, Mechanical, Civil, Other)
+- Graduation year
+- CGPA (0.00 - 10.00)
+- Active backlogs (number)
+- Requires valid university invite code
+- Role: 'student'
+
+**Login:**
+- Email + password
+- Returns JWT token
+- Redirects based on role
+
+#### 2. Database Schema
+
+```sql
+-- Users table
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('coordinator', 'student')),
+  university_id INTEGER REFERENCES universities(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Universities table
+CREATE TABLE universities (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  location VARCHAR(255),
+  invite_code VARCHAR(50) UNIQUE NOT NULL,
+  coordinator_user_id INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Students extended profile
+CREATE TABLE students (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) UNIQUE NOT NULL,
+  roll_number VARCHAR(50) NOT NULL,
+  branch VARCHAR(100) NOT NULL,
+  graduation_year INTEGER NOT NULL,
+  cgpa DECIMAL(3,2),
+  active_backlogs INTEGER DEFAULT 0,
+  phone VARCHAR(15),
+  placement_status VARCHAR(50) DEFAULT 'Not Placed' CHECK (placement_status IN ('Not Placed', 'Placed', 'Opted Out')),
+  placed_company VARCHAR(255),
+  placed_package DECIMAL(10,2),
+  UNIQUE(roll_number, user_id)
+);
+
+-- Company drives posted by coordinators
+CREATE TABLE company_drives (
+  id SERIAL PRIMARY KEY,
+  university_id INTEGER REFERENCES universities(id) NOT NULL,
+  posted_by_coordinator_id INTEGER REFERENCES users(id) NOT NULL,
+  company_name VARCHAR(255) NOT NULL,
+  job_role VARCHAR(255) NOT NULL,
+  ctc_min DECIMAL(10,2),
+  ctc_max DECIMAL(10,2),
+  job_description TEXT,
+  min_cgpa DECIMAL(3,2) DEFAULT 0.0,
+  max_backlogs INTEGER DEFAULT 0,
+  allowed_branches TEXT[], -- Array like ['CSE', 'IT', 'ECE']
+  registration_deadline TIMESTAMP NOT NULL,
+  drive_status VARCHAR(50) DEFAULT 'Active' CHECK (drive_status IN ('Active', 'Completed', 'Cancelled')),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Student registrations for drives
+CREATE TABLE student_registrations (
+  id SERIAL PRIMARY KEY,
+  drive_id INTEGER REFERENCES company_drives(id) NOT NULL,
+  student_id INTEGER REFERENCES students(id) NOT NULL,
+  registration_status VARCHAR(50) DEFAULT 'Registered' CHECK (registration_status IN (
+    'Registered', 'Shortlisted', 'Interview', 'Selected', 'Rejected'
+  )),
+  resume_id INTEGER REFERENCES resumes(id),
+  notes TEXT,
+  ai_match_score INTEGER,
+  registered_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(drive_id, student_id)
+);
+
+-- Student resumes
+CREATE TABLE resumes (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) NOT NULL,
+  resume_name VARCHAR(255) NOT NULL,
+  file_path TEXT NOT NULL,
+  resume_text TEXT,
+  is_default BOOLEAN DEFAULT false,
+  uploaded_at TIMESTAMP DEFAULT NOW()
+);
+
+-- AI analysis results
+CREATE TABLE ai_analyses (
+  id SERIAL PRIMARY KEY,
+  student_id INTEGER REFERENCES students(id) NOT NULL,
+  drive_id INTEGER REFERENCES company_drives(id) NOT NULL,
+  resume_id INTEGER REFERENCES resumes(id) NOT NULL,
+  match_score INTEGER,
+  missing_keywords TEXT[],
+  suggestions TEXT[],
+  generated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Phase 2: Coordinator Features
+
+#### Coordinator Dashboard (Main View)
+Display cards showing:
+- Total drives posted (Active, Completed)
+- Total students registered
+- Students placed vs not placed
+- Current placement percentage
+
+**UI Layout:**
+```
+┌─────────────────────────────────────────┐
+│  [Logo] T&P Management  [Coordinator ▼] │
+├─────────────────────────────────────────┤
+│  Dashboard  |  Drives  |  Students      │
+├─────────────────────────────────────────┤
+│                                         │
+│  Quick Stats:                           │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ │
+│  │ 12 Active│ │ 45/120   │ │ 37.5%   │ │
+│  │ Drives   │ │ Placed   │ │ Placed  │ │
+│  └──────────┘ └──────────┘ └─────────┘ │
+│                                         │
+│  Recent Drives:                         │
+│  [Table with drive details]             │
+│  [+ Post New Drive]                     │
+└─────────────────────────────────────────┘
+```
+
+#### Post Drive Form
+Fields:
+- Company name*
+- Job role*
+- CTC range (min - max in LPA)*
+- Job description (textarea)
+- Eligibility criteria:
+  - Minimum CGPA* (slider 0-10)
+  - Max allowed backlogs* (dropdown 0-5)
+  - Allowed branches* (multi-select checkboxes)
+- Registration deadline* (datetime picker)
+
+**Validation:**
+- All starred fields required
+- CGPA between 0-10
+- CTC min < CTC max
+- Deadline must be future date
+
+**On Submit:**
+- Save to database
+- Show success message
+- Redirect to drives list
+
+#### View All Drives
+Table showing:
+- Company name
+- Role
+- CTC
+- Registrations count
+- Deadline
+- Status badge
+- Actions: [View] [Edit] [Mark Complete]
+
+**Click "View":**
+- Modal/page showing:
+  - Full drive details
+  - List of registered students (name, roll, branch, CGPA, status)
+  - Update student status dropdown per student
+  - Mark students as Selected/Rejected
+
+#### Student List View
+Table with:
+- Name
+- Roll number
+- Branch
+- CGPA
+- Backlogs
+- Placement status badge
+- Registrations count
+- Actions: [View Profile]
+
+**Filters:**
+- By branch (dropdown)
+- By placement status
+- Search by name/roll
+
+### Phase 3: Student Features
+
+#### Student Dashboard (Main View)
+Display:
+- Welcome message with name
+- Placement status badge
+- Cards showing:
+  - Drives eligible for
+  - Registered drives
+  - Upcoming interviews
+  
+**Eligible Drives Section:**
+Show only drives where:
+- Student's CGPA >= drive's min_cgpa
+- Student's backlogs <= drive's max_backlogs
+- Student's branch is in allowed_branches
+- Deadline not passed
+- Drive status = 'Active'
+
+**UI Layout:**
+```
+┌─────────────────────────────────────────┐
+│  [Logo] T&P Portal      [Student Name ▼]│
+├─────────────────────────────────────────┤
+│  Dashboard | Drives | My Applications   │
+├─────────────────────────────────────────┤
+│  Welcome, Rahul!                        │
+│  Status: Not Placed                     │
+│                                         │
+│  🎯 Eligible Drives (3):                │
+│  ┌───────────────────────────────────┐ │
+│  │ Google SDE                        │ │
+│  │ 8-12 LPA | Deadline: Dec 10      │ │
+│  │ Min CGPA: 7.0 | Max Backlogs: 0  │ │
+│  │ [Register] [View Details]         │ │
+│  └───────────────────────────────────┘ │
+│                                         │
+│  My Registered Drives (2):              │
+│  [Table showing registered drives]      │
+└─────────────────────────────────────────┘
+```
+
+#### Browse Drives Page
+- Show all eligible drives in card layout
+- Each card has:
+  - Company name
+  - Role
+  - CTC
+  - Eligibility criteria
+  - Deadline countdown
+  - [Register] button if not registered
+  - [View] button if already registered
+
+#### Drive Registration Flow
+1. Student clicks "Register" on a drive
+2. Show modal/page:
+   - Drive details summary
+   - "Select Resume" dropdown (from uploaded resumes)
+   - Optional: Notes field
+   - [Confirm Registration] button
+3. On confirm:
+   - Check if resume selected
+   - Create registration record
+   - Show success message
+   - Redirect to My Applications
+
+#### My Applications Page
+Table showing student's registrations:
+- Company
+- Role
+- Applied date
+- Current status (badge)
+- Match score (if analyzed)
+- Actions: [View] [Analyze Resume] [Withdraw]
+
+**Status Colors:**
+- Registered: Blue
+- Shortlisted: Yellow
+- Interview: Purple
+- Selected: Green
+- Rejected: Red
+
+#### Resume Management
+**Upload Resume Page:**
+- Form with:
+  - Resume name (e.g., "Default Resume", "Tech Focused")
+  - File upload (PDF only, max 5MB)
+  - Checkbox: "Set as default"
+  - [Upload] button
+
+**On upload:**
+- Save file to `/uploads/resumes/`
+- Extract text from PDF using pdf-parse
+- Store both file path and extracted text
+- Show success message
+
+**My Resumes Page:**
+- List all uploaded resumes
+- Show: Name, Upload date, Default badge
+- Actions: [View] [Set Default] [Delete]
+
+### Phase 4: AI Resume Analysis
+
+#### Analyze Resume Feature
+**Student clicks "Analyze Resume" on a registered drive:**
+
+1. Check if student has uploaded resume
+2. If not → prompt to upload
+3. If yes → show loading spinner
+4. Call Gemini API with:
+   - Resume text
+   - Drive's job description
+   - Prompt asking for match analysis
+
+**Gemini Prompt Template:**
+```
+You are an ATS expert. Analyze this resume against the job description.
+
+RESUME:
+{resume_text}
+
+JOB DESCRIPTION:
+{job_description}
+Role: {job_role}
+Company: {company_name}
+
+Provide response in JSON format:
+{
+  "matchScore": <0-100>,
+  "missingKeywords": [<array of important missing keywords>],
+  "suggestions": [<3 specific actionable improvements>]
+}
+
+Return ONLY valid JSON, no other text.
+```
+
+5. Parse Gemini response
+6. Save to ai_analyses table
+7. Display results in modal:
+
+**Analysis Results Modal:**
+```
+┌─────────────────────────────────────────┐
+│  Resume Analysis - Google SDE           │
+├─────────────────────────────────────────┤
+│                                         │
+│  Match Score: 73%                       │
+│  [========------] Green/Yellow/Red bar  │
+│                                         │
+│  Missing Keywords:                      │
+│  • Docker                               │
+│  • Kubernetes                           │
+│  • System Design                        │
+│  • CI/CD                                │
+│                                         │
+│  Suggestions to Improve:                │
+│  1. Add Docker containerization to      │
+│     your projects section               │
+│  2. Highlight any distributed systems   │
+│     experience you have                 │
+│  3. Include specific cloud platforms    │
+│     you've worked with                  │
+│                                         │
+│  [Close] [Analyze Again]                │
+└─────────────────────────────────────────┘
+```
+
+### Phase 5: Essential UX Polish
+
+#### Navigation
+- Sticky navbar on all pages
+- Active page indicator
+- User dropdown menu:
+  - Profile
+  - Settings
+  - Logout
+
+#### Loading States
+- Show spinner during:
+  - Login/Registration
+  - Data fetching
+  - AI analysis
+  - File uploads
+
+#### Success/Error Messages
+- Use toast notifications (top-right)
+- Auto-dismiss after 3 seconds
+- Green for success, red for error
+
+#### Form Validation
+- Client-side validation before submit
+- Show inline error messages
+- Disable submit button until valid
+
+#### Responsive Design
+- Mobile-friendly layout
+- Hamburger menu on mobile
+- Stack cards vertically on small screens
+- Use Tailwind responsive classes
+
+## API Endpoints to Implement
+
+### Authentication Routes
+```
+POST /api/auth/register/coordinator
+POST /api/auth/register/student
+POST /api/auth/login
+GET /api/auth/me
+POST /api/auth/logout
+```
+
+### Coordinator Routes (Protected)
+```
+GET /api/coordinator/dashboard-stats
+POST /api/coordinator/drives
+GET /api/coordinator/drives
+GET /api/coordinator/drives/:id
+PUT /api/coordinator/drives/:id
+GET /api/coordinator/drives/:id/registrations
+PUT /api/coordinator/registrations/:id/status
+GET /api/coordinator/students
+GET /api/coordinator/students/:id
+```
+
+### Student Routes (Protected)
+```
+GET /api/student/profile
+PUT /api/student/profile
+GET /api/student/drives/eligible
+GET /api/student/drives/:id
+POST /api/student/drives/:id/register
+GET /api/student/registrations
+DELETE /api/student/registrations/:id
+POST /api/student/resumes
+GET /api/student/resumes
+POST /api/student/analyze/:registrationId
+```
+
+## Design System (Tailwind)
+
+### Colors
+```javascript
+Primary: blue-600
+Success: green-500
+Warning: yellow-500
+Danger: red-500
+Background: gray-50
+Card: white with shadow-sm
+Text: gray-900
+Secondary text: gray-600
+```
+
+### Typography
+```javascript
+Heading 1: text-3xl font-bold
+Heading 2: text-2xl font-semibold
+Heading 3: text-xl font-semibold
+Body: text-base
+Small: text-sm text-gray-600
+```
+
+### Components
+```javascript
+Button Primary: bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg
+Button Secondary: bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg
+Card: bg-white rounded-lg shadow-sm p-6
+Badge: px-3 py-1 rounded-full text-sm font-medium
+Input: border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500
+```
+
+## Environment Variables Required
+```env
+DATABASE_URL=postgresql://...
+JWT_SECRET=your-secret-here
+GEMINI_API_KEY=your-gemini-key
+PORT=3000
+NODE_ENV=development
+```
+
+## File Structure
+```
+project/
+├── server/
+│   ├── index.js (Express app)
+│   ├── db.js (PostgreSQL connection)
+│   ├── middleware/
+│   │   └── auth.js (JWT verification)
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── coordinator.js
+│   │   └── student.js
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── coordinatorController.js
+│   │   └── studentController.js
+│   └── services/
+│       └── gemini.js (AI integration)
+├── client/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── RegisterCoordinator.jsx
+│   │   │   ├── RegisterStudent.jsx
+│   │   │   ├── CoordinatorDashboard.jsx
+│   │   │   ├── StudentDashboard.jsx
+│   │   │   ├── PostDrive.jsx
+│   │   │   ├── ViewDrives.jsx
+│   │   │   ├── MyApplications.jsx
+│   │   │   └── UploadResume.jsx
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── DriveCard.jsx
+│   │   │   ├── StatCard.jsx
+│   │   │   ├── StatusBadge.jsx
+│   │   │   └── AnalysisModal.jsx
+│   │   ├── hooks/
+│   │   │   └── useAuth.js
+│   │   └── services/
+│   │       └── api.js (Axios instance)
+│   └── index.html
+├── uploads/
+│   └── resumes/
+└── package.json
+```
+
+## Implementation Instructions
+
+1. **Initialize project:**
+   - Create Express backend with PostgreSQL
+   - Create React frontend with Vite
+   - Install dependencies:
+     - Backend: express, pg, jsonwebtoken, bcrypt, multer, pdf-parse, @google/generative-ai, cors, dotenv
+     - Frontend: react, react-router-dom, axios, tailwindcss
+
+2. **Database setup:**
+   - Create PostgreSQL database
+   - Run schema SQL to create tables
+   - Add indexes on foreign keys
+
+3. **Backend development:**
+   - Set up Express server
+   - Create database connection
+   - Implement auth middleware
+   - Build all API routes
+   - Integrate Gemini API
+
+4. **Frontend development:**
+   - Set up React Router
+   - Create all pages and components
+   - Implement authentication flow
+   - Connect to backend API
+   - Style with Tailwind CSS
+
+5. **Testing:**
+   - Test coordinator flow: register → login → post drive
+   - Test student flow: register → login → browse → register for drive → upload resume → analyze
+   - Test AI analysis with real resume and job description
+
+6. **Deploy on Replit:**
+   - Set environment variables in Replit Secrets
+   - Ensure database is connected
+   - Test production build
+
+## Key Implementation Notes
+
+1. **Auth Flow:**
+   - Use bcrypt to hash passwords (10 salt rounds)
+   - Generate JWT on login with 7-day expiry
+   - Store in httpOnly cookie
+   - Verify JWT on protected routes
+
+2. **Eligibility Check:**
+   - Run on backend when fetching eligible drives
+   - SQL query with WHERE conditions for CGPA, backlogs, branch
+
+3. **File Upload:**
+   - Use Multer to handle file upload
+   - Validate: PDF only, max 5MB
+   - Generate unique filename: `{studentId}_{timestamp}.pdf`
+   - Store in `/uploads/resumes/`
+   - Use pdf-parse to extract text immediately after upload
+
+4. **Gemini Integration:**
+   - Set up API key in environment
+   - Use gemini-1.5-flash model
+   - Handle rate limits (15 req/min)
+   - Parse JSON response carefully (handle errors)
+   - Cache results in database to avoid re-analysis
+
+5. **Error Handling:**
+   - Wrap async routes in try-catch
+   - Return consistent error format: `{error: "message"}`
+   - Log errors server-side
+   - Show user-friendly messages client-side
+
+## Start Building Now
+
+Build in this exact order:
+1. ✅ Set up project structure and install dependencies
+2. ✅ Create database schema
+3. ✅ Build authentication system (register + login for both roles)
+4. ✅ Create coordinator dashboard with drive posting
+5. ✅ Create student dashboard with eligible drives
+6. ✅ Implement registration flow
+7. ✅ Add resume upload
+8. ✅ Integrate Gemini for AI analysis
+9. ✅ Polish UI and add loading states
+10. ✅ Test end-to-end flow
+
+Focus on getting a working MVP quickly. We can add advanced features later. Let's build! 🚀
