@@ -27,6 +27,7 @@ import {
   ThumbsUp,
   Reply,
   MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -52,52 +53,70 @@ interface StudentContact {
   graduationYear: number;
   placementStatus: string;
   placedCompany?: string;
-  isOnline: boolean;
 }
 
 interface Message {
   id: number;
   senderId: number;
+  receiverId: number;
   content: string;
-  timestamp: Date;
+  isRead: boolean;
+  createdAt: string;
   isOwn: boolean;
 }
 
 interface CommunityProps {
   discussions: Discussion[];
   students: StudentContact[];
+  messages: Message[];
+  onlineUsers: any[];
+  user?: { name: string; id: number };
   onCreateDiscussion: (title: string, content: string, tags: string[]) => void;
   onSendMessage: (studentId: number, message: string) => void;
   onLikeDiscussion: (discussionId: number) => void;
+  onDeleteDiscussion: (discussionId: number) => void;
+  onSelectStudent: (student: StudentContact | null) => void;
+  selectedStudent: StudentContact | null;
 }
 
 export default function Community({
   discussions,
   students,
+  messages,
+  onlineUsers,
+  user,
   onCreateDiscussion,
   onSendMessage,
   onLikeDiscussion,
+  onDeleteDiscussion,
+  onSelectStudent,
+  selectedStudent,
 }: CommunityProps) {
   const [activeTab, setActiveTab] = useState("discussions");
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewDiscussion, setShowNewDiscussion] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState<StudentContact | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const { toast } = useToast();
 
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, senderId: 2, content: "Hey! How's your preparation going for the Google interview?", timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), isOwn: false },
-    { id: 2, senderId: 1, content: "Going well! I've been practicing DSA problems daily. Any tips?", timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000), isOwn: true },
-    { id: 3, senderId: 2, content: "Focus on system design too. They asked me about distributed systems.", timestamp: new Date(Date.now() - 30 * 60 * 1000), isOwn: false },
-  ]);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === "discussions") {
+      onSelectStudent(null);
+    }
+  };
 
   const filteredStudents = students.filter(
     (s) =>
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.branch.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Check if a student is online based on WebSocket data
+  const isStudentOnline = (studentId: number) => {
+    return onlineUsers.some((user: any) => user.userId === studentId && user.isOnline);
+  };
 
   const filteredDiscussions = discussions.filter(
     (d) =>
@@ -136,21 +155,23 @@ export default function Community({
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedStudent) return;
     
-    const newMessage: Message = {
-      id: messages.length + 1,
-      senderId: 1,
-      content: messageInput,
-      timestamp: new Date(),
-      isOwn: true,
-    };
-    setMessages([...messages, newMessage]);
     onSendMessage(selectedStudent.id, messageInput);
     setMessageInput("");
   };
 
+  const handleDeleteDiscussion = (discussionId: number, discussionTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete "${discussionTitle}"? This action cannot be undone.`)) {
+      onDeleteDiscussion(discussionId);
+      toast({
+        title: "Discussion Deleted",
+        description: "Your discussion has been deleted",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <TabsList>
             <TabsTrigger value="discussions" className="gap-2" data-testid="tab-discussions">
@@ -285,6 +306,16 @@ export default function Community({
                             ))}
                           </div>
                         )}
+                        {/* Show delete button only for discussion author */}
+                        {user && discussion.author.name === user.name && (
+                          <button
+                            className="flex items-center gap-1.5 text-sm text-destructive hover:text-destructive/80 transition-colors ml-2"
+                            onClick={() => handleDeleteDiscussion(discussion.id, discussion.title)}
+                            title="Delete discussion"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -314,7 +345,7 @@ export default function Community({
                           className={`flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b last:border-b-0 ${
                             selectedStudent?.id === student.id ? "bg-muted/50" : ""
                           }`}
-                          onClick={() => setSelectedStudent(student)}
+                          onClick={() => onSelectStudent(selectedStudent?.id === student.id ? null : student)}
                           data-testid={`student-contact-${student.id}`}
                         >
                           <div className="relative">
@@ -323,7 +354,7 @@ export default function Community({
                                 {getInitials(student.name)}
                               </AvatarFallback>
                             </Avatar>
-                            {student.isOnline && (
+                            {isStudentOnline(student.id) && (
                               <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
                             )}
                           </div>
@@ -388,7 +419,7 @@ export default function Community({
                                       : "text-muted-foreground"
                                   }`}
                                 >
-                                  {formatDistanceToNow(new Date(message.timestamp), {
+                                  {formatDistanceToNow(new Date(message.createdAt), {
                                     addSuffix: true,
                                   })}
                                 </p>

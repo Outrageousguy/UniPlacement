@@ -108,7 +108,11 @@ export default function DriveCard({
   };
 
   const handleRegister = () => {
-    if (selectedResume && onRegister) {
+    if (!selectedResume) {
+      alert("Please select a resume to apply");
+      return;
+    }
+    if (onRegister) {
       onRegister(id, parseInt(selectedResume), notes);
       setShowRegisterDialog(false);
       setSelectedResume("");

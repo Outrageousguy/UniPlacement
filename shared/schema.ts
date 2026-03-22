@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, timestamp, pgEnum, Index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -18,7 +18,9 @@ export const coordinators = pgTable("coordinators", {
   universityName: text("university_name").notNull(),
   inviteCode: text("invite_code").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Students table
 export const students = pgTable("students", {
@@ -36,7 +38,9 @@ export const students = pgTable("students", {
   placedPackage: decimal("placed_package", { precision: 5, scale: 2 }),
   coordinatorId: integer("coordinator_id").notNull().references(() => coordinators.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Drives table
 export const drives = pgTable("drives", {
@@ -53,7 +57,9 @@ export const drives = pgTable("drives", {
   status: driveStatusEnum("status").notNull().default("Active"),
   coordinatorId: integer("coordinator_id").notNull().references(() => coordinators.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Resumes table
 export const resumes = pgTable("resumes", {
@@ -64,7 +70,9 @@ export const resumes = pgTable("resumes", {
   fileContent: text("file_content").notNull(), // Base64 encoded PDF content
   isDefault: boolean("is_default").notNull().default(false),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Applications table
 export const applications = pgTable("applications", {
@@ -76,7 +84,9 @@ export const applications = pgTable("applications", {
   matchScore: integer("match_score"),
   notes: text("notes"),
   appliedAt: timestamp("applied_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Discussions table
 export const discussions = pgTable("discussions", {
@@ -87,7 +97,9 @@ export const discussions = pgTable("discussions", {
   tags: text("tags").array().notNull().default([]),
   likesCount: integer("likes_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // Discussion likes table
 export const discussionLikes = pgTable("discussion_likes", {
@@ -114,7 +126,9 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // indexes will be created by database migration
+}));
 
 // AI Analysis results table
 export const aiAnalyses = pgTable("ai_analyses", {
@@ -123,7 +137,7 @@ export const aiAnalyses = pgTable("ai_analyses", {
   matchScore: integer("match_score").notNull(),
   missingKeywords: text("missing_keywords").array().notNull().default([]),
   suggestions: text("suggestions").array().notNull().default([]),
-  analyzedAt: timestamp("analyzed_at").defaultNow().notNull(),
+  analyzedAt: timestamp("analyzed_at").defaultNow().notNull()
 });
 
 // Relations

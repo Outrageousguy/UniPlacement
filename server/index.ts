@@ -1,11 +1,204 @@
-import 'dotenv/config'; 
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 
 const app = express();
 const httpServer = createServer(app);
+const wss = new WebSocketServer({ noServer: true });
+
+// Handle only the dedicated /ws path so Vite HMR /vite/ws is unaffected
+httpServer.on('upgrade', (req, socket, head) => {
+  if (req.url === '/ws') {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// WebSocket connection management
+interface WSClient {
+  ws: WebSocket;
+  userId: number;
+  userType: 'student' | 'coordinator';
+  isAlive: boolean;
+}
+
+const connectedClients = new Map<number, WSClient>();
+
+// Broadcast to specific user
+export function broadcastToUser(userId: number, message: any) {
+  const client = connectedClients.get(userId);
+  if (client && client.ws.readyState === WebSocket.OPEN) {
+    client.ws.send(JSON.stringify(message));
+  }
+}
+
+// Broadcast to all connected clients
+function broadcastToAll(message: any) {
+  connectedClients.forEach(client => {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(JSON.stringify(message));
+    }
+  });
+}
+
+// Broadcast online status updates
+function broadcastOnlineStatus() {
+  const onlineUsers = Array.from(connectedClients.entries()).map(([userId, client]) => ({
+    userId,
+    userType: client.userType,
+    isOnline: true
+  }));
+
+  broadcastToAll({
+    type: 'online_status_update',
+    data: onlineUsers
+  });
+}
+
+// WebSocket connection handler
+wss.on('connection', (ws: WebSocket, req) => {
+  log('WebSocket connection established', 'websocket');
+
+  let authenticatedUser: { id: number; type: 'student' | 'coordinator' } | null = null;
+
+  // Handle incoming messages
+  ws.on('message', async (data: Buffer) => {
+    try {
+      const message = JSON.parse(data.toString());
+
+      switch (message.type) {
+        case 'authenticate':
+          // Authenticate user based on session or token
+          // For now, we'll use a simple approach - in production you'd validate JWT/session
+          if (message.userId && message.userType) {
+            authenticatedUser = { id: message.userId, type: message.userType };
+
+            // Add to connected clients
+            connectedClients.set(message.userId, {
+              ws,
+              userId: message.userId,
+              userType: message.userType,
+              isAlive: true
+            });
+
+            // Send confirmation
+            ws.send(JSON.stringify({
+              type: 'authenticated',
+              data: { success: true }
+            }));
+
+            // Broadcast updated online status
+            broadcastOnlineStatus();
+
+            log(`User ${message.userId} (${message.userType}) authenticated via WebSocket`, 'websocket');
+          } else {
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Authentication failed' }
+            }));
+          }
+          break;
+
+        case 'message':
+          if (!authenticatedUser) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              data: { message: 'Not authenticated' }
+            }));
+            return;
+          }
+
+          // Broadcast message to recipient
+          if (message.data && message.data.receiverId) {
+            broadcastToUser(message.data.receiverId, {
+              type: 'new_message',
+              data: {
+                ...message.data,
+                senderId: authenticatedUser.id,
+                timestamp: new Date().toISOString()
+              }
+            });
+
+            // Also send back to sender for confirmation
+            ws.send(JSON.stringify({
+              type: 'message_sent',
+              data: message.data
+            }));
+          }
+          break;
+
+        case 'typing':
+          if (authenticatedUser && message.data && message.data.receiverId) {
+            broadcastToUser(message.data.receiverId, {
+              type: 'typing',
+              data: {
+                senderId: authenticatedUser.id,
+                isTyping: message.data.isTyping
+              }
+            });
+          }
+          break;
+
+        default:
+          ws.send(JSON.stringify({
+            type: 'error',
+            data: { message: 'Unknown message type' }
+          }));
+      }
+    } catch (error) {
+      log(`WebSocket message error: ${error}`, 'websocket');
+      ws.send(JSON.stringify({
+        type: 'error',
+        data: { message: 'Invalid message format' }
+      }));
+    }
+  });
+
+  // Handle connection close
+  ws.on('close', () => {
+    if (authenticatedUser) {
+      connectedClients.delete(authenticatedUser.id);
+      broadcastOnlineStatus();
+      log(`User ${authenticatedUser.id} disconnected`, 'websocket');
+    }
+  });
+
+  // Handle ping/pong for connection health
+  ws.on('pong', () => {
+    if (authenticatedUser) {
+      const client = connectedClients.get(authenticatedUser.id);
+      if (client) {
+        client.isAlive = true;
+      }
+    }
+  });
+});
+
+// Ping clients to check if they're still alive
+const pingInterval = setInterval(() => {
+  connectedClients.forEach((client, userId) => {
+    if (!client.isAlive) {
+      client.ws.terminate();
+      connectedClients.delete(userId);
+      broadcastOnlineStatus();
+      return;
+    }
+
+    client.isAlive = false;
+    client.ws.ping();
+  });
+}, 30000);
+
+// Clean up interval on server close
+httpServer.on('close', () => {
+  clearInterval(pingInterval);
+});
 
 declare module "http" {
   interface IncomingMessage {
@@ -92,7 +285,9 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5001", 10);
+
+
+  const port = parseInt(process.env.PORT || "5003", 10);
   httpServer.listen(
     {
       port,
@@ -103,3 +298,5 @@ app.use((req, res, next) => {
     },
   );
 })();
+
+console.log("DB URL:", process.env.DATABASE_URL);

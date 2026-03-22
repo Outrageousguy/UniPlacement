@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import { db } from "./db";
 import { 
   loginSchema, 
   coordinatorRegisterSchema, 
@@ -13,10 +14,18 @@ import {
   insertApplicationSchema,
   insertDiscussionSchema,
   insertDiscussionReplySchema,
-  insertMessageSchema
+  insertMessageSchema,
+  discussions,
+  students,
+  discussionReplies,
+  applications,
+  drives,
+  resumes
 } from "@shared/schema";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
+import { broadcastToUser } from "./index";
+import { eq, desc, sql, asc } from "drizzle-orm";
 
 // Session type augmentation
 declare module "express-session" {
@@ -81,6 +90,18 @@ export async function registerRoutes(
     }
   }));
 
+  
+  app.get("/test-db", async (req, res) => {
+    try {
+      await db.execute("SELECT 1");
+      res.send("DB Connected ✅");
+    } catch (err) {
+      console.error("DB ERROR:", err);
+      res.send("DB Failed ❌");
+    }
+  });
+
+
   // ==================== AUTH ROUTES ====================
   
   // Get current user
@@ -141,30 +162,30 @@ export async function registerRoutes(
       const data = studentRegisterSchema.parse(req.body);
       
       // Verify invite code
-      const coordinator = await storage.getCoordinatorByInviteCode(data.inviteCode);
+      const coordinator = await storage.getCoordinatorByInviteCode((data as any).inviteCode);
       if (!coordinator) {
         return res.status(400).json({ message: "Invalid invite code" });
       }
       
       // Check if email already exists
-      const existingStudent = await storage.getStudentByEmail(data.email);
+      const existingStudent = await storage.getStudentByEmail((data as any).email);
       if (existingStudent) {
         return res.status(400).json({ message: "Email already registered" });
       }
       
       // Hash password
-      const hashedPassword = await bcrypt.hash(data.password, 10);
+      const hashedPassword = await bcrypt.hash((data as any).password, 10);
       
       // Create student
       const student = await storage.createStudent({
-        email: data.email,
+        email: (data as any).email,
         password: hashedPassword,
-        name: data.name,
-        rollNumber: data.rollNumber,
-        branch: data.branch,
-        graduationYear: data.graduationYear,
-        cgpa: data.cgpa.toString(),
-        activeBacklogs: data.activeBacklogs,
+        name: (data as any).name,
+        rollNumber: (data as any).rollNumber,
+        branch: (data as any).branch,
+        graduationYear: (data as any).graduationYear,
+        cgpa: (data as any).cgpa.toString(),
+        activeBacklogs: (data as any).activeBacklogs,
         coordinatorId: coordinator.id
       });
       
@@ -308,16 +329,30 @@ export async function registerRoutes(
   // Get all students for coordinator
   app.get("/api/coordinator/students", requireCoordinator, async (req, res) => {
     try {
-      const students = await storage.getStudentsByCoordinator(req.session.user!.id);
+      const coordinatorId = req.session.user!.id;
       
-      // Get registration counts for each student
-      const studentsWithCounts = await Promise.all(students.map(async (student) => {
-        const applications = await storage.getApplicationsByStudent(student.id);
-        return {
-          ...student,
-          registrationsCount: applications.length
-        };
-      }));
+      // Optimized single query with LEFT JOIN to get application counts
+      const studentsWithCounts = await db.select({
+        id: students.id,
+        email: students.email,
+        name: students.name,
+        rollNumber: students.rollNumber,
+        branch: students.branch,
+        graduationYear: students.graduationYear,
+        cgpa: students.cgpa,
+        activeBacklogs: students.activeBacklogs,
+        placementStatus: students.placementStatus,
+        placedCompany: students.placedCompany,
+        placedPackage: students.placedPackage,
+        coordinatorId: students.coordinatorId,
+        createdAt: students.createdAt,
+        registrationsCount: sql<number>`count(${applications.id})`
+      })
+      .from(students)
+      .leftJoin(applications, eq(students.id, applications.studentId))
+      .where(eq(students.coordinatorId, coordinatorId))
+      .groupBy(students.id)
+      .orderBy(desc(students.createdAt));
       
       res.json(studentsWithCounts);
     } catch (error) {
@@ -363,16 +398,28 @@ export async function registerRoutes(
         coordinatorId = req.session.user!.coordinatorId!;
       }
       
-      const drives = await storage.getDrivesByCoordinator(coordinatorId);
-      
-      // Get registration counts
-      const drivesWithCounts = await Promise.all(drives.map(async (drive) => {
-        const applications = await storage.getApplicationsByDrive(drive.id);
-        return {
-          ...drive,
-          registrationsCount: applications.length
-        };
-      }));
+      // Optimized single query with LEFT JOIN to get application counts
+      const drivesWithCounts = await db.select({
+        id: drives.id,
+        companyName: drives.companyName,
+        jobRole: drives.jobRole,
+        ctcMin: drives.ctcMin,
+        ctcMax: drives.ctcMax,
+        jobDescription: drives.jobDescription,
+        minCgpa: drives.minCgpa,
+        maxBacklogs: drives.maxBacklogs,
+        allowedBranches: drives.allowedBranches,
+        registrationDeadline: drives.registrationDeadline,
+        status: drives.status,
+        coordinatorId: drives.coordinatorId,
+        createdAt: drives.createdAt,
+        registrationsCount: sql<number>`count(${applications.id})`
+      })
+      .from(drives)
+      .leftJoin(applications, eq(drives.id, applications.driveId))
+      .where(eq(drives.coordinatorId, coordinatorId))
+      .groupBy(drives.id)
+      .orderBy(desc(drives.createdAt));
       
       res.json(drivesWithCounts);
     } catch (error) {
@@ -430,12 +477,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Drive not found" });
       }
 
-      const updateDriveSchema = insertDriveSchema
-        .partial()
-        .omit({ coordinatorId: true })
-        .extend({
-          status: z.enum(["Active", "Completed", "Cancelled"]).optional(),
-        });
+      const updateDriveSchema = z.object({
+        companyName: z.string().optional(),
+        jobRole: z.string().optional(),
+        ctcMin: z.string().optional(),
+        ctcMax: z.string().optional(),
+        jobDescription: z.string().optional(),
+        minCgpa: z.string().optional(),
+        maxBacklogs: z.number().int().min(0).optional(),
+        allowedBranches: z.array(z.string()).optional(),
+        registrationDeadline: z.coerce.date().optional(),
+        status: z.enum(["Active", "Completed", "Cancelled"]).optional(),
+      });
 
       const data = updateDriveSchema.parse(req.body);
       const updated = await storage.updateDrive(driveId, data);
@@ -482,26 +535,49 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Drive not found" });
       }
       
-      const applications = await storage.getApplicationsByDrive(driveId);
+      // Optimized single query with joins to get student and resume data
+      const enrichedApplications = await db.select({
+        id: applications.id,
+        driveId: applications.driveId,
+        studentId: applications.studentId,
+        resumeId: applications.resumeId,
+        status: applications.status,
+        matchScore: applications.matchScore,
+        notes: applications.notes,
+        appliedAt: applications.appliedAt,
+        studentName: students.name,
+        studentRollNumber: students.rollNumber,
+        studentBranch: students.branch,
+        studentCgpa: students.cgpa,
+        resumeName: resumes.name
+      })
+      .from(applications)
+      .leftJoin(students, eq(applications.studentId, students.id))
+      .leftJoin(resumes, eq(applications.resumeId, resumes.id))
+      .where(eq(applications.driveId, driveId))
+      .orderBy(desc(applications.appliedAt));
       
-      // Enrich with student data
-      const enrichedApplications = await Promise.all(applications.map(async (app) => {
-        const student = await storage.getStudent(app.studentId);
-        const resume = await storage.getResume(app.resumeId);
-        return {
-          ...app,
-          student: student ? {
-            id: student.id,
-            name: student.name,
-            rollNumber: student.rollNumber,
-            branch: student.branch,
-            cgpa: student.cgpa
-          } : null,
-          resumeName: resume?.name || "Unknown"
-        };
+      // Transform the results to match expected format
+      const transformedApplications = enrichedApplications.map(app => ({
+        id: app.id,
+        driveId: app.driveId,
+        studentId: app.studentId,
+        resumeId: app.resumeId,
+        status: app.status,
+        matchScore: app.matchScore,
+        notes: app.notes,
+        appliedAt: app.appliedAt,
+        student: {
+          id: app.studentId,
+          name: app.studentName || "Unknown",
+          rollNumber: app.studentRollNumber || "",
+          branch: app.studentBranch || "",
+          cgpa: app.studentCgpa || "0"
+        },
+        resumeName: app.resumeName || "Unknown"
       }));
       
-      res.json(enrichedApplications);
+      res.json(transformedApplications);
     } catch (error) {
       console.error("Get applications error:", error);
       res.status(500).json({ message: "Failed to get applications" });
@@ -595,21 +671,44 @@ export async function registerRoutes(
   // Get student's applications
   app.get("/api/student/applications", requireStudent, async (req, res) => {
     try {
-      const applications = await storage.getApplicationsByStudent(req.session.user!.id);
+      const studentId = req.session.user!.id;
       
-      // Enrich with drive data
-      const enrichedApplications = await Promise.all(applications.map(async (app) => {
-        const drive = await storage.getDrive(app.driveId);
-        const resume = await storage.getResume(app.resumeId);
-        return {
-          ...app,
-          companyName: drive?.companyName || "Unknown",
-          jobRole: drive?.jobRole || "Unknown",
-          resumeName: resume?.name || "Unknown"
-        };
+      // Optimized single query with joins to get drive and resume data
+      const enrichedApplications = await db.select({
+        id: applications.id,
+        driveId: applications.driveId,
+        studentId: applications.studentId,
+        resumeId: applications.resumeId,
+        status: applications.status,
+        matchScore: applications.matchScore,
+        notes: applications.notes,
+        appliedAt: applications.appliedAt,
+        companyName: drives.companyName,
+        jobRole: drives.jobRole,
+        resumeName: resumes.name
+      })
+      .from(applications)
+      .leftJoin(drives, eq(applications.driveId, drives.id))
+      .leftJoin(resumes, eq(applications.resumeId, resumes.id))
+      .where(eq(applications.studentId, studentId))
+      .orderBy(desc(applications.appliedAt));
+      
+      // Transform the results to match expected format
+      const transformedApplications = enrichedApplications.map(app => ({
+        id: app.id,
+        driveId: app.driveId,
+        studentId: app.studentId,
+        resumeId: app.resumeId,
+        status: app.status,
+        matchScore: app.matchScore,
+        notes: app.notes,
+        appliedAt: app.appliedAt,
+        companyName: app.companyName || "Unknown",
+        jobRole: app.jobRole || "Unknown",
+        resumeName: app.resumeName || "Unknown"
       }));
       
-      res.json(enrichedApplications);
+      res.json(transformedApplications);
     } catch (error) {
       console.error("Get applications error:", error);
       res.status(500).json({ message: "Failed to get applications" });
@@ -622,47 +721,71 @@ export async function registerRoutes(
       const { driveId, resumeId, notes } = req.body;
       const studentId = req.session.user!.id;
       
+      console.log("Application request:", { driveId, resumeId, studentId, notes: notes ? "provided" : "none" });
+      
       // Check if already applied
       const existing = await storage.getApplicationByStudentAndDrive(studentId, driveId);
       if (existing) {
+        console.log("Student already applied to drive");
         return res.status(400).json({ message: "Already applied to this drive" });
       }
       
       // Verify drive exists and is active
       const drive = await storage.getDrive(driveId);
-      if (!drive || drive.status !== "Active") {
+      if (!drive) {
+        console.log("Drive not found:", driveId);
+        return res.status(400).json({ message: "Drive not found" });
+      }
+      
+      if (drive.status !== "Active") {
+        console.log("Drive not active:", drive.status);
         return res.status(400).json({ message: "Drive not available" });
       }
       
       // Check deadline
       if (new Date(drive.registrationDeadline) < new Date()) {
+        console.log("Deadline passed:", drive.registrationDeadline);
         return res.status(400).json({ message: "Registration deadline has passed" });
       }
       
       // Verify resume belongs to student
       const resume = await storage.getResume(resumeId);
-      if (!resume || resume.studentId !== studentId) {
+      if (!resume) {
+        console.log("Resume not found:", resumeId);
+        return res.status(400).json({ message: "Resume not found" });
+      }
+      
+      if (resume.studentId !== studentId) {
+        console.log("Resume belongs to different student:", resume.studentId, studentId);
         return res.status(400).json({ message: "Invalid resume" });
       }
       
       // Check eligibility
       const student = await storage.getStudent(studentId);
       if (!student) {
+        console.log("Student not found:", studentId);
         return res.status(404).json({ message: "Student not found" });
       }
       
-      if (parseFloat(student.cgpa) < parseFloat(drive.minCgpa)) {
+      const studentCgpa = parseFloat(student.cgpa);
+      const requiredCgpa = parseFloat(drive.minCgpa);
+      
+      if (studentCgpa < requiredCgpa) {
+        console.log("CGPA requirement not met:", studentCgpa, requiredCgpa);
         return res.status(400).json({ message: "CGPA does not meet requirements" });
       }
       
       if (student.activeBacklogs > drive.maxBacklogs) {
+        console.log("Too many backlogs:", student.activeBacklogs, drive.maxBacklogs);
         return res.status(400).json({ message: "Too many active backlogs" });
       }
       
       if (!drive.allowedBranches.includes(student.branch)) {
+        console.log("Branch not eligible:", student.branch, drive.allowedBranches);
         return res.status(400).json({ message: "Branch not eligible for this drive" });
       }
       
+      console.log("Creating application...");
       const application = await storage.createApplication({
         driveId,
         studentId,
@@ -670,10 +793,34 @@ export async function registerRoutes(
         notes
       });
       
+      console.log("Application created successfully:", application.id);
       res.json(application);
     } catch (error) {
-      console.error("Apply error:", error);
-      res.status(500).json({ message: "Failed to apply" });
+      console.error("Apply error:", error instanceof Error ? error.message : "Unknown error");
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to apply to drive";
+      if (error instanceof Error) {
+        if (error.message.includes("already applied")) {
+          errorMessage = "You have already applied to this drive";
+        } else if (error.message.includes("not available")) {
+          errorMessage = "This drive is not available for applications";
+        } else if (error.message.includes("deadline")) {
+          errorMessage = "The registration deadline has passed";
+        } else if (error.message.includes("Invalid resume")) {
+          errorMessage = "Invalid resume selected";
+        } else if (error.message.includes("CGPA")) {
+          errorMessage = "Your CGPA does not meet the requirements";
+        } else if (error.message.includes("backlogs")) {
+          errorMessage = "You have too many active backlogs";
+        } else if (error.message.includes("Branch")) {
+          errorMessage = "Your branch is not eligible for this drive";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      res.status(500).json({ message: errorMessage });
     }
   });
 
@@ -745,7 +892,7 @@ export async function registerRoutes(
         uploadedAt: resume.uploadedAt
       });
     } catch (error) {
-      console.error("Upload resume error:", error);
+      console.error("Upload resume error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to upload resume" });
     }
   });
@@ -773,7 +920,7 @@ export async function registerRoutes(
       
       res.json({ fileContent: resume.fileContent });
     } catch (error) {
-      console.error("Get resume content error:", error);
+      console.error("Get resume content error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to get resume content" });
     }
   });
@@ -924,7 +1071,7 @@ Respond in the following JSON format only:
         suggestions: analysis.suggestions
       });
     } catch (error) {
-      console.error("Analysis error:", error);
+      console.error("Analysis error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to analyze resume" });
     }
   });
@@ -942,23 +1089,43 @@ Respond in the following JSON format only:
         coordinatorId = req.session.user!.coordinatorId!;
       }
       
-      const discussions = await storage.getDiscussionsByCoordinator(coordinatorId);
+      // Optimized single query with joins instead of N+1 queries
+      const discussionResults = await db.select({
+        id: discussions.id,
+        title: discussions.title,
+        content: discussions.content,
+        authorId: discussions.authorId,
+        tags: discussions.tags,
+        likesCount: discussions.likesCount,
+        createdAt: discussions.createdAt,
+        authorName: students.name,
+        authorBranch: students.branch,
+        repliesCount: sql<number>`count(${discussionReplies.id})`
+      })
+      .from(discussions)
+      .leftJoin(students, eq(discussions.authorId, students.id))
+      .leftJoin(discussionReplies, eq(discussionReplies.discussionId, discussions.id))
+      .where(eq(students.coordinatorId, coordinatorId))
+      .groupBy(discussions.id, students.name, students.branch)
+      .orderBy(desc(discussions.createdAt));
       
-      // Enrich with author info and reply counts
-      const enrichedDiscussions = await Promise.all(discussions.map(async (d) => {
-        const author = await storage.getStudent(d.authorId);
-        const replies = await storage.getRepliesByDiscussion(d.id);
-        return {
-          ...d,
-          author: author ? {
-            name: author.name,
-            branch: author.branch
-          } : { name: "Unknown", branch: "" },
-          repliesCount: replies.length
-        };
+      // Transform the results to match expected format
+      const transformedDiscussions = discussionResults.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        content: d.content,
+        authorId: d.authorId,
+        tags: d.tags,
+        likesCount: d.likesCount,
+        createdAt: d.createdAt,
+        author: {
+          name: d.authorName || "Unknown",
+          branch: d.authorBranch || ""
+        },
+        repliesCount: Number(d.repliesCount) || 0
       }));
       
-      res.json(enrichedDiscussions);
+      res.json(transformedDiscussions);
     } catch (error) {
       console.error("Get discussions error:", error);
       res.status(500).json({ message: "Failed to get discussions" });
@@ -1007,25 +1174,60 @@ Respond in the following JSON format only:
     }
   });
 
+  // Delete discussion (only by author)
+  app.delete("/api/discussions/:id", requireStudent, async (req, res) => {
+    try {
+      const discussionId = parseInt(req.params.id);
+      const studentId = req.session.user!.id;
+      
+      // Attempt to delete the discussion (storage method will verify ownership)
+      const success = await storage.deleteDiscussion(discussionId, studentId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Discussion not found or you don't have permission to delete it" });
+      }
+      
+      res.json({ message: "Discussion deleted successfully" });
+    } catch (error) {
+      console.error("Delete discussion error:", error);
+      res.status(500).json({ message: "Failed to delete discussion" });
+    }
+  });
+
   // Get discussion replies
   app.get("/api/discussions/:id/replies", requireAuth, async (req, res) => {
     try {
       const discussionId = parseInt(req.params.id);
-      const replies = await storage.getRepliesByDiscussion(discussionId);
       
-      // Enrich with author info
-      const enrichedReplies = await Promise.all(replies.map(async (r) => {
-        const author = await storage.getStudent(r.authorId);
-        return {
-          ...r,
-          author: author ? {
-            name: author.name,
-            branch: author.branch
-          } : { name: "Unknown", branch: "" }
-        };
+      // Optimized single query with JOIN to get author info
+      const enrichedReplies = await db.select({
+        id: discussionReplies.id,
+        discussionId: discussionReplies.discussionId,
+        authorId: discussionReplies.authorId,
+        content: discussionReplies.content,
+        createdAt: discussionReplies.createdAt,
+        authorName: students.name,
+        authorBranch: students.branch
+      })
+      .from(discussionReplies)
+      .leftJoin(students, eq(discussionReplies.authorId, students.id))
+      .where(eq(discussionReplies.discussionId, discussionId))
+      .orderBy(asc(discussionReplies.createdAt));
+      
+      // Transform the results to match expected format
+      const transformedReplies = enrichedReplies.map(reply => ({
+        id: reply.id,
+        discussionId: reply.discussionId,
+        authorId: reply.authorId,
+        content: reply.content,
+        createdAt: reply.createdAt,
+        author: {
+          name: reply.authorName || "Unknown",
+          branch: reply.authorBranch || ""
+        }
       }));
       
-      res.json(enrichedReplies);
+      res.json(transformedReplies);
     } catch (error) {
       console.error("Get replies error:", error);
       res.status(500).json({ message: "Failed to get replies" });
@@ -1069,7 +1271,8 @@ Respond in the following JSON format only:
           branch: s.branch,
           graduationYear: s.graduationYear,
           placementStatus: s.placementStatus,
-          placedCompany: s.placedCompany
+          placedCompany: s.placedCompany,
+          isOnline: Math.random() > 0.5 // Mock online status
         }));
       
       res.json(studentList);
@@ -1115,12 +1318,29 @@ Respond in the following JSON format only:
         content
       });
       
+      // Broadcast message to recipient via WebSocket
+      broadcastToUser(receiverId, {
+        type: 'new_message',
+        data: {
+          id: message.id,
+          senderId: message.senderId,
+          receiverId: message.receiverId,
+          content: message.content,
+          isRead: message.isRead,
+          createdAt: message.createdAt,
+          isOwn: false
+        }
+      });
+      
       res.json({ ...message, isOwn: true });
     } catch (error) {
       console.error("Send message error:", error);
       res.status(500).json({ message: "Failed to send message" });
     }
   });
+
+
+
 
   return httpServer;
 }

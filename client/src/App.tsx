@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,6 +27,7 @@ import AIAnalysis from "@/components/AIAnalysis";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
 import Community from "@/components/Community";
+import { useWebSocket } from "@/hooks/use-websocket";
 import {
   Building2,
   Users,
@@ -36,104 +39,6 @@ import {
   Clock,
   Copy,
 } from "lucide-react";
-
-// todo: remove mock functionality - mock data for prototype
-const mockDrives = [
-  {
-    id: 1,
-    companyName: "Google",
-    jobRole: "Software Engineer",
-    ctcMin: 25,
-    ctcMax: 35,
-    minCgpa: 8.0,
-    maxBacklogs: 0,
-    allowedBranches: ["CSE", "IT", "ECE"],
-    registrationDeadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    jobDescription: "Join Google's engineering team to build products that help billions of users. Work on cutting-edge technologies including AI/ML, cloud computing, and distributed systems.",
-    status: "Active" as const,
-    registrationsCount: 45,
-  },
-  {
-    id: 2,
-    companyName: "Microsoft",
-    jobRole: "SDE II",
-    ctcMin: 18,
-    ctcMax: 28,
-    minCgpa: 7.5,
-    maxBacklogs: 1,
-    allowedBranches: ["CSE", "IT", "ECE", "EEE"],
-    registrationDeadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-    jobDescription: "Work on Azure cloud services and enterprise solutions. Collaborate with teams worldwide to deliver innovative products.",
-    status: "Active" as const,
-    registrationsCount: 62,
-  },
-  {
-    id: 3,
-    companyName: "Amazon",
-    jobRole: "SDE I",
-    ctcMin: 16,
-    ctcMax: 24,
-    minCgpa: 7.0,
-    maxBacklogs: 1,
-    allowedBranches: ["CSE", "IT"],
-    registrationDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    jobDescription: "Build systems that power Amazon's e-commerce platform serving millions of customers daily.",
-    status: "Active" as const,
-    registrationsCount: 78,
-  },
-  {
-    id: 4,
-    companyName: "Infosys",
-    jobRole: "Systems Engineer",
-    ctcMin: 4,
-    ctcMax: 6,
-    minCgpa: 6.0,
-    maxBacklogs: 2,
-    allowedBranches: ["CSE", "IT", "ECE", "EEE", "Mechanical", "Civil"],
-    registrationDeadline: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    jobDescription: "Join one of India's leading IT companies. Training provided for freshers.",
-    status: "Completed" as const,
-    registrationsCount: 120,
-  },
-];
-
-// todo: remove mock functionality
-const mockStudents = [
-  { id: 1, name: "Rahul Sharma", email: "rahul@university.edu", rollNumber: "2021CSE001", branch: "CSE", graduationYear: 2025, cgpa: 8.75, activeBacklogs: 0, placementStatus: "Placed" as const, placedCompany: "Google", placedPackage: 32, registrationsCount: 5 },
-  { id: 2, name: "Priya Patel", email: "priya@university.edu", rollNumber: "2021IT002", branch: "IT", graduationYear: 2025, cgpa: 9.2, activeBacklogs: 0, placementStatus: "Not Placed" as const, registrationsCount: 8 },
-  { id: 3, name: "Amit Kumar", email: "amit@university.edu", rollNumber: "2021ECE003", branch: "ECE", graduationYear: 2025, cgpa: 7.8, activeBacklogs: 1, placementStatus: "Not Placed" as const, registrationsCount: 3 },
-  { id: 4, name: "Sneha Gupta", email: "sneha@university.edu", rollNumber: "2021CSE004", branch: "CSE", graduationYear: 2025, cgpa: 8.4, activeBacklogs: 0, placementStatus: "Placed" as const, placedCompany: "Microsoft", placedPackage: 24, registrationsCount: 6 },
-  { id: 5, name: "Vikram Singh", email: "vikram@university.edu", rollNumber: "2021ME005", branch: "Mechanical", graduationYear: 2025, cgpa: 7.2, activeBacklogs: 2, placementStatus: "Opted Out" as const, registrationsCount: 0 },
-];
-
-// todo: remove mock functionality
-const mockResumes = [
-  { id: 1, name: "Default Resume", fileName: "rahul_resume_v3.pdf", uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), isDefault: true },
-  { id: 2, name: "Tech Focused", fileName: "rahul_tech_resume.pdf", uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), isDefault: false },
-];
-
-// todo: remove mock functionality
-const mockApplications = [
-  { id: 1, driveId: 1, companyName: "Google", jobRole: "Software Engineer", appliedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), status: "Shortlisted" as const, matchScore: 85, resumeName: "Default Resume" },
-  { id: 2, driveId: 2, companyName: "Microsoft", jobRole: "SDE II", appliedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), status: "Interview" as const, matchScore: 78, resumeName: "Tech Focused" },
-  { id: 3, driveId: 3, companyName: "Amazon", jobRole: "SDE I", appliedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), status: "Registered" as const, resumeName: "Default Resume" },
-];
-
-// todo: remove mock functionality
-const mockDiscussions = [
-  { id: 1, title: "Tips for Google Technical Interview", content: "I just cleared Google's technical round! Here are some tips that helped me - focus on problem-solving approach, communicate your thought process clearly, and practice medium-level DSA problems.", author: { name: "Priya Patel", branch: "IT" }, createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), repliesCount: 12, likesCount: 34, tags: ["Interview", "Google"] },
-  { id: 2, title: "Resume tips for freshers", content: "Should I include my internship project if it was only 2 months? Also, how many projects are ideal for a fresher resume?", author: { name: "Amit Kumar", branch: "ECE" }, createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), repliesCount: 8, likesCount: 15, tags: ["Resume"] },
-  { id: 3, title: "Microsoft vs Amazon - Which to choose?", content: "Got offers from both! Microsoft is offering slightly less but heard work-life balance is better. Any seniors who can share their experience?", author: { name: "Sneha Gupta", branch: "CSE" }, createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000), repliesCount: 23, likesCount: 45, tags: ["Career"] },
-];
-
-// todo: remove mock functionality
-const mockStudentContacts = [
-  { id: 1, name: "Priya Patel", branch: "IT", graduationYear: 2025, placementStatus: "Not Placed", isOnline: true },
-  { id: 2, name: "Amit Kumar", branch: "ECE", graduationYear: 2025, placementStatus: "Not Placed", isOnline: false },
-  { id: 3, name: "Sneha Gupta", branch: "CSE", graduationYear: 2025, placementStatus: "Placed", placedCompany: "Microsoft", isOnline: true },
-  { id: 4, name: "Vikram Singh", branch: "Mechanical", graduationYear: 2025, placementStatus: "Opted Out", isOnline: false },
-  { id: 5, name: "Ananya Reddy", branch: "CSE", graduationYear: 2025, placementStatus: "Placed", placedCompany: "Google", isOnline: true },
-];
 
 function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -351,7 +256,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
           <div className="space-y-6">
             <h1 className="text-3xl font-semibold tracking-tight">Students</h1>
             <StudentTable
-              students={students.length > 0 ? students : mockStudents}
+              students={students}
               onViewProfile={() => {
                 toast({
                   title: "Coming soon",
@@ -511,6 +416,8 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
 
 function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [viewingResume, setViewingResume] = useState<{ id: number; name: string; content: string } | null>(null);
   const { toast } = useToast();
 
   const { data: drives = [] } = useQuery<any[]>({
@@ -526,6 +433,284 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   const { data: resumes = [] } = useQuery<any[]>({
     queryKey: ["/api/resumes"],
     enabled: !!user,
+  });
+
+  // Community queries
+  const { data: discussions = [] } = useQuery<any[]>({
+    queryKey: ["/api/discussions"],
+    enabled: !!user,
+  });
+
+  const { data: students = [] } = useQuery<any[]>({
+    queryKey: ["/api/students"],
+    enabled: !!user,
+  });
+
+  // Messages query - only fetch when a student is selected
+  const { data: messages = [] } = useQuery<{
+    id: number;
+    senderId: number;
+    receiverId: number;
+    content: string;
+    isRead: boolean;
+    createdAt: string;
+    isOwn: boolean;
+  }[]>({
+    queryKey: ["/api/messages", selectedStudent?.id],
+    queryFn: async () => {
+      if (!selectedStudent) return [];
+      const response = await apiRequest("GET", `/api/messages/${selectedStudent.id}`);
+      return response.json();
+    },
+    enabled: !!user && !!selectedStudent,
+  });
+
+  // WebSocket for real-time chat
+  const {
+    isConnected: wsConnected,
+    onlineUsers,
+    sendChatMessage,
+    sendTyping
+  } = useWebSocket({
+    userId: user?.id,
+    userType: 'student',
+    onNewMessage: (message) => {
+      // Add new message to current conversation if it's with the selected student
+      if (selectedStudent && (message.senderId === selectedStudent.id || message.receiverId === selectedStudent.id)) {
+        // Invalidate messages query to refetch
+        queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedStudent.id] });
+      }
+    },
+    onOnlineStatusUpdate: (onlineUsers) => {
+      // Update online status in students list
+      // This will be handled by the Community component
+    }
+  });
+
+  // Resume view handler
+  const handleViewResume = async (resumeId: number) => {
+    try {
+      const response = await apiRequest("GET", `/api/resumes/${resumeId}/content`);
+      const data = await response.json();
+      
+      // Find resume name from the resumes list
+      const resume = activeResumes.find(r => r.id === resumeId);
+      setViewingResume({
+        id: resumeId,
+        name: resume?.name || "Resume",
+        content: data.fileContent
+      });
+    } catch (error) {
+      console.error("Failed to view resume:", error);
+      toast({
+        title: "Failed to View Resume",
+        description: "Could not load resume content. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  // Resume upload mutation
+  const uploadResumeMutation = useMutation({
+    mutationFn: async ({ file, name, isDefault }: { file: File; name: string; isDefault: boolean }) => {
+      const fileContent = await fileToBase64(file);
+      const response = await apiRequest("POST", "/api/resumes", {
+        name,
+        fileName: file.name,
+        fileContent,
+        isDefault,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
+    },
+    onError: (error) => {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload resume. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Resume delete mutation
+  const deleteResumeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/resumes/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
+    },
+    onError: (error) => {
+      console.error("Delete error:", error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete resume. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Set default resume mutation
+  const setDefaultResumeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("PATCH", `/api/resumes/${id}/default`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/resumes"] });
+    },
+    onError: (error) => {
+      console.error("Set default error:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to set default resume. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete discussion mutation
+  const deleteDiscussionMutation = useMutation({
+    mutationFn: async (discussionId: number) => {
+      await apiRequest("DELETE", `/api/discussions/${discussionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
+    },
+    onError: (error: Error) => {
+      console.error("Delete discussion error:", error);
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete discussion. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Community mutations
+  const createDiscussionMutation = useMutation({
+    mutationFn: async ({ title, content, tags }: { title: string; content: string; tags: string[] }) => {
+      const response = await apiRequest("POST", "/api/discussions", {
+        title,
+        content,
+        tags,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
+    },
+    onError: (error) => {
+      console.error("Create discussion error:", error);
+      toast({
+        title: "Failed to Create Discussion",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const likeDiscussionMutation = useMutation({
+    mutationFn: async (discussionId: number) => {
+      const response = await apiRequest("POST", `/api/discussions/${discussionId}/like`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
+    },
+    onError: (error) => {
+      console.error("Like discussion error:", error);
+      toast({
+        title: "Failed to Like Discussion",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ receiverId, content }: { receiverId: number; content: string }) => {
+      const response = await apiRequest("POST", "/api/messages", {
+        receiverId,
+        content,
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      // Send via WebSocket for real-time delivery
+      sendChatMessage(variables.receiverId, variables.content);
+
+      // Invalidate messages query to ensure local state is updated
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedStudent?.id] });
+    },
+    onError: (error) => {
+      console.error("Send message error:", error);
+      toast({
+        title: "Failed to Send Message",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Apply to drive mutation
+  const applyToDriveMutation = useMutation({
+    mutationFn: async ({ driveId, resumeId, notes }: { driveId: number; resumeId: number; notes?: string }) => {
+      const response = await apiRequest("POST", "/api/student/apply", {
+        driveId,
+        resumeId,
+        notes,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/student/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/drives"] });
+    },
+    onError: (error: Error) => {
+      console.error("Apply to drive error:", error);
+      toast({
+        title: "Application Failed",
+        description: error.message || "Failed to apply to drive. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Withdraw application mutation
+  const withdrawApplicationMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      await apiRequest("DELETE", `/api/student/applications/${applicationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/student/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/drives"] });
+    },
+    onError: (error) => {
+      console.error("Withdraw application error:", error);
+      toast({
+        title: "Withdrawal Failed",
+        description: "Failed to withdraw application. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const currentStudent = user ? {
@@ -544,9 +729,9 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     placementStatus: "Not Placed" as "Not Placed" | "Placed" | "Opted Out",
   };
 
-  const activeDrives = drives.length > 0 ? drives : mockDrives;
-  const activeApplications = applications.length > 0 ? applications : mockApplications;
-  const activeResumes = resumes.length > 0 ? resumes : mockResumes;
+  const activeDrives = drives;
+  const activeApplications = applications;
+  const activeResumes = resumes;
 
   const eligibleDrives = activeDrives.filter((drive: any) => {
     return (
@@ -651,12 +836,16 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
                         activeApplications.find((a: any) => a.driveId === drive.id)?.status
                       }
                       resumes={activeResumes}
-                      onRegister={(driveId, resumeId, notes) => {
-                        console.log("Register:", { driveId, resumeId, notes });
-                        toast({
-                          title: "Registration Successful",
-                          description: `You have registered for ${drive.companyName}`,
-                        });
+                      onRegister={async (driveId, resumeId, notes) => {
+                        try {
+                          await applyToDriveMutation.mutateAsync({ driveId, resumeId, notes });
+                          toast({
+                            title: "Registration Successful",
+                            description: `You have registered for ${drive.companyName}`,
+                          });
+                        } catch (error) {
+                          // Error handling is done in the mutation
+                        }
                       }}
                       userRole="student"
                     />
@@ -669,7 +858,17 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
               <h2 className="text-xl font-semibold mb-4">My Recent Applications</h2>
               <ApplicationsTable
                 applications={activeApplications.slice(0, 3)}
-                onWithdraw={(id) => console.log("Withdraw:", id)}
+                onWithdraw={async (id) => {
+                try {
+                  await withdrawApplicationMutation.mutateAsync(id);
+                  toast({
+                    title: "Application Withdrawn",
+                    description: "Your application has been withdrawn",
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
+              }}
                 onViewDrive={(id) => console.log("View drive:", id)}
                 onAnalyze={(id) => console.log("Analyze:", id)}
               />
@@ -697,12 +896,16 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
                           activeApplications.find((a: any) => a.driveId === drive.id)?.status
                         }
                         resumes={activeResumes}
-                        onRegister={(driveId, resumeId, notes) => {
-                          console.log("Register:", { driveId, resumeId, notes });
-                          toast({
-                            title: "Registration Successful",
-                            description: `You have registered for ${drive.companyName}`,
-                          });
+                        onRegister={async (driveId, resumeId, notes) => {
+                          try {
+                            await applyToDriveMutation.mutateAsync({ driveId, resumeId, notes });
+                            toast({
+                              title: "Registration Successful",
+                              description: `You have registered for ${drive.companyName}`,
+                            });
+                          } catch (error) {
+                            // Error handling is done in the mutation
+                          }
                         }}
                         userRole="student"
                       />
@@ -723,12 +926,16 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
             <h1 className="text-3xl font-semibold tracking-tight">My Applications</h1>
             <ApplicationsTable
               applications={activeApplications}
-              onWithdraw={(id) => {
-                console.log("Withdraw:", id);
-                toast({
-                  title: "Application Withdrawn",
-                  description: "Your application has been withdrawn",
-                });
+              onWithdraw={async (id) => {
+                try {
+                  await withdrawApplicationMutation.mutateAsync(id);
+                  toast({
+                    title: "Application Withdrawn",
+                    description: "Your application has been withdrawn",
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
               onViewDrive={(id) => console.log("View drive:", id)}
               onAnalyze={(id) => console.log("Analyze:", id)}
@@ -741,28 +948,41 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
             <h1 className="text-3xl font-semibold tracking-tight">My Resumes</h1>
             <ResumeManager
               resumes={activeResumes}
-              onUpload={(file, name, isDefault) => {
-                console.log("Upload:", { file: file.name, name, isDefault });
-                toast({
-                  title: "Resume Uploaded",
-                  description: `"${name}" has been uploaded successfully`,
-                });
+              onUpload={async (file, name, isDefault) => {
+                try {
+                  await uploadResumeMutation.mutateAsync({ file, name, isDefault });
+                  toast({
+                    title: "Resume Uploaded",
+                    description: `"${name}" has been uploaded successfully`,
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
-              onDelete={(id) => {
-                console.log("Delete:", id);
-                toast({
-                  title: "Resume Deleted",
-                  description: "Resume has been deleted",
-                });
+              onDelete={async (id) => {
+                try {
+                  await deleteResumeMutation.mutateAsync(id);
+                  toast({
+                    title: "Resume Deleted",
+                    description: "Resume has been deleted",
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
-              onSetDefault={(id) => {
-                console.log("Set default:", id);
-                toast({
-                  title: "Default Resume Updated",
-                  description: "Your default resume has been changed",
-                });
+              onSetDefault={async (id) => {
+                try {
+                  await setDefaultResumeMutation.mutateAsync(id);
+                  toast({
+                    title: "Default Resume Updated",
+                    description: "Your default resume has been changed",
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
-              onView={(id) => console.log("View:", id)}
+              onView={handleViewResume}
+              isUploading={uploadResumeMutation.isPending}
             />
           </div>
         )}
@@ -771,24 +991,89 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
           <div className="space-y-6">
             <h1 className="text-3xl font-semibold tracking-tight">Community</h1>
             <Community
-              discussions={mockDiscussions}
-              students={mockStudentContacts}
-              onCreateDiscussion={(title, content, tags) => {
-                console.log("Create discussion:", { title, content, tags });
-                toast({
-                  title: "Discussion Posted",
-                  description: "Your discussion has been shared with the community",
-                });
+              discussions={discussions}
+              students={students}
+              messages={messages}
+              onlineUsers={onlineUsers}
+              user={user}
+              onCreateDiscussion={async (title, content, tags) => {
+                try {
+                  await createDiscussionMutation.mutateAsync({ title, content, tags });
+                  toast({
+                    title: "Discussion Posted",
+                    description: "Your discussion has been posted successfully",
+                  });
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
-              onSendMessage={(studentId, message) => {
-                console.log("Send message:", { studentId, message });
+              onSendMessage={async (studentId, message) => {
+                try {
+                  await sendMessageMutation.mutateAsync({ receiverId: studentId, content: message });
+                  // Toast is handled in WebSocket message handler
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
-              onLikeDiscussion={(discussionId) => {
-                console.log("Like discussion:", discussionId);
+              onLikeDiscussion={async (discussionId) => {
+                try {
+                  await likeDiscussionMutation.mutateAsync(discussionId);
+                  // Toast is handled in mutation
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
               }}
+              onDeleteDiscussion={async (discussionId) => {
+                try {
+                  await deleteDiscussionMutation.mutateAsync(discussionId);
+                  // Toast is handled in mutation
+                } catch (error) {
+                  // Error handling is done in the mutation
+                }
+              }}
+              onSelectStudent={setSelectedStudent}
+              selectedStudent={selectedStudent}
             />
           </div>
         )}
+
+        {/* Resume Viewer Dialog */}
+        <Dialog open={!!viewingResume} onOpenChange={(open) => !open && setViewingResume(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>{viewingResume?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+              {viewingResume && (
+                <iframe
+                  src={`data:application/pdf;base64,${viewingResume.content}`}
+                  className="w-full h-full"
+                  title={viewingResume.name}
+                />
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setViewingResume(null)}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  if (viewingResume) {
+                    const link = document.createElement('a');
+                    link.href = `data:application/pdf;base64,${viewingResume.content}`;
+                    link.download = `${viewingResume.name}.pdf`;
+                    link.click();
+                  }
+                }}
+              >
+                Download
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
