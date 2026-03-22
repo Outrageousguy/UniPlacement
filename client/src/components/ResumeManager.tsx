@@ -90,19 +90,22 @@ export default function ResumeManager({
     if (file.type !== "application/pdf") {
       toast({
         title: "Invalid File Type",
-        description: "Please upload a PDF file only.",
+        description: `"${file.name}" is not a PDF file. Please upload only PDF resumes.`,
         variant: "destructive",
       });
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    
+    const maxSizeMB = file.size / (1024 * 1024);
+    if (maxSizeMB > 5) {
       toast({
         title: "File Too Large",
-        description: "File size must be less than 5MB.",
+        description: `"${file.name}" is ${maxSizeMB.toFixed(1)}MB. Maximum allowed size is 5MB.`,
         variant: "destructive",
       });
       return;
     }
+    
     setSelectedFile(file);
     if (!resumeName) {
       setResumeName(file.name.replace(".pdf", ""));
@@ -110,30 +113,66 @@ export default function ResumeManager({
   };
 
   const handleUpload = () => {
-    if (!selectedFile || !resumeName.trim()) {
+    if (!selectedFile) {
       toast({
-        title: "Error",
-        description: "Please select a file and enter a name.",
+        title: "No File Selected",
+        description: "Please select a PDF file to upload.",
         variant: "destructive",
       });
       return;
     }
+    
+    if (!resumeName.trim()) {
+      toast({
+        title: "Missing Resume Name",
+        description: "Please enter a name for your resume.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if resume name already exists
+    const existingResume = resumes.find(r => r.name.toLowerCase() === resumeName.trim().toLowerCase());
+    if (existingResume) {
+      toast({
+        title: "Duplicate Resume Name",
+        description: "A resume with this name already exists. Please use a different name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     onUpload(selectedFile, resumeName.trim(), isDefault);
     setShowUploadDialog(false);
     setSelectedFile(null);
     setResumeName("");
     setIsDefault(false);
     toast({
-      title: "Resume Uploaded",
-      description: `"${resumeName}" has been uploaded successfully.`,
+      title: "Uploading Resume",
+      description: `"${resumeName}" is being uploaded...`,
     });
   };
 
   const handleDelete = (resume: Resume) => {
+    // Check if this is the default resume
+    if (resume.isDefault) {
+      toast({
+        title: "Cannot Delete Default Resume",
+        description: "Please set another resume as default before deleting this one.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Show confirmation dialog
+    if (!window.confirm(`Are you sure you want to delete "${resume.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
     onDelete(resume.id);
     toast({
-      title: "Resume Deleted",
-      description: `"${resume.name}" has been deleted.`,
+      title: "Deleting Resume",
+      description: `"${resume.name}" is being deleted...`,
     });
   };
 

@@ -147,8 +147,8 @@ export default function Community({
     setNewTitle("");
     setNewContent("");
     toast({
-      title: "Discussion Created",
-      description: "Your discussion has been posted",
+      title: "Creating Discussion",
+      description: "Your discussion is being posted...",
     });
   };
 
@@ -163,8 +163,8 @@ export default function Community({
     if (window.confirm(`Are you sure you want to delete "${discussionTitle}"? This action cannot be undone.`)) {
       onDeleteDiscussion(discussionId);
       toast({
-        title: "Discussion Deleted",
-        description: "Your discussion has been deleted",
+        title: "Deleting Discussion",
+        description: "Your discussion is being deleted...",
       });
     }
   };

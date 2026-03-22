@@ -63,8 +63,6 @@ function broadcastOnlineStatus() {
 
 // WebSocket connection handler
 wss.on('connection', (ws: WebSocket, req) => {
-  log('WebSocket connection established', 'websocket');
-
   let authenticatedUser: { id: number; type: 'student' | 'coordinator' } | null = null;
 
   // Handle incoming messages
@@ -95,8 +93,6 @@ wss.on('connection', (ws: WebSocket, req) => {
 
             // Broadcast updated online status
             broadcastOnlineStatus();
-
-            log(`User ${message.userId} (${message.userType}) authenticated via WebSocket`, 'websocket');
           } else {
             ws.send(JSON.stringify({
               type: 'error',
@@ -165,7 +161,6 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (authenticatedUser) {
       connectedClients.delete(authenticatedUser.id);
       broadcastOnlineStatus();
-      log(`User ${authenticatedUser.id} disconnected`, 'websocket');
     }
   });
 
@@ -224,35 +219,27 @@ app.use("/api", (_req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
+  // Only log in development or for important messages
+  if (process.env.NODE_ENV !== "production" || source === "error") {
+    const formattedTime = new Date().toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+    console.log(`${formattedTime} [${source}] ${message}`);
+  }
 }
 
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
+    // Only log API requests in development, and don't log response bodies
+    if (path.startsWith("/api") && process.env.NODE_ENV !== "production") {
+      const logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });
@@ -299,4 +286,7 @@ app.use((req, res, next) => {
   );
 })();
 
-console.log("DB URL:", process.env.DATABASE_URL);
+// Only log DB URL in development
+if (process.env.NODE_ENV !== "production") {
+  console.log("DB URL:", process.env.DATABASE_URL);
+}

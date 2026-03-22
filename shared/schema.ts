@@ -79,7 +79,7 @@ export const applications = pgTable("applications", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   driveId: integer("drive_id").notNull().references(() => drives.id, { onDelete: "cascade" }),
   studentId: integer("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  resumeId: integer("resume_id").notNull().references(() => resumes.id),
+  resumeId: integer("resume_id").notNull().references(() => resumes.id, { onDelete: "cascade" }),
   status: applicationStatusEnum("status").notNull().default("Registered"),
   matchScore: integer("match_score"),
   notes: text("notes"),
@@ -261,7 +261,10 @@ export const insertStudentSchema = createInsertSchema(students, {
   rollNumber: z.string().min(2),
   branch: z.string().min(2),
   graduationYear: z.number().int().min(2020).max(2030),
-  cgpa: z.string(),
+  cgpa: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 10;
+  }, "CGPA must be a number between 0 and 10"),
   activeBacklogs: z.number().int().min(0),
   coordinatorId: z.number().int(),
 }).pick({

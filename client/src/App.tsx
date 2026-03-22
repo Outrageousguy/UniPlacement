@@ -593,6 +593,10 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
+      toast({
+        title: "Discussion Deleted Successfully",
+        description: "The discussion has been permanently deleted",
+      });
     },
     onError: (error: Error) => {
       console.error("Delete discussion error:", error);
@@ -963,8 +967,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
                 try {
                   await deleteResumeMutation.mutateAsync(id);
                   toast({
-                    title: "Resume Deleted",
-                    description: "Resume has been deleted",
+                    title: "Resume Deleted Successfully",
+                    description: "The resume has been permanently deleted",
                   });
                 } catch (error) {
                   // Error handling is done in the mutation
@@ -1000,8 +1004,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
                 try {
                   await createDiscussionMutation.mutateAsync({ title, content, tags });
                   toast({
-                    title: "Discussion Posted",
-                    description: "Your discussion has been posted successfully",
+                    title: "Discussion Posted Successfully",
+                    description: "Your discussion is now visible to everyone",
                   });
                 } catch (error) {
                   // Error handling is done in the mutation

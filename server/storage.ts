@@ -49,6 +49,7 @@ export interface IStorage {
   getApplication(id: number): Promise<Application | undefined>;
   getApplicationsByStudent(studentId: number): Promise<Application[]>;
   getApplicationsByDrive(driveId: number): Promise<Application[]>;
+  getApplicationsByResume(resumeId: number): Promise<Application[]>;
   getApplicationByStudentAndDrive(studentId: number, driveId: number): Promise<Application | undefined>;
   createApplication(application: InsertApplication): Promise<Application>;
   updateApplication(id: number, data: Partial<Application>): Promise<Application | undefined>;
@@ -234,6 +235,12 @@ export class DatabaseStorage implements IStorage {
   async getApplicationsByDrive(driveId: number): Promise<Application[]> {
     return (await db.select().from(applications)
       .where(eq(applications.driveId, driveId))
+      .orderBy(desc(applications.appliedAt))) as Application[];
+  }
+
+  async getApplicationsByResume(resumeId: number): Promise<Application[]> {
+    return (await db.select().from(applications)
+      .where(eq(applications.resumeId, resumeId))
       .orderBy(desc(applications.appliedAt))) as Application[];
   }
 

@@ -55,6 +55,14 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Helper function to safely get user from session
+function getUser(req: Request) {
+  if (!req.session.user) {
+    throw new Error("User not authenticated");
+  }
+  return req.session.user;
+}
+
 function requireCoordinator(req: Request, res: Response, next: NextFunction) {
   if (!req.session.user || req.session.user.role !== "coordinator") {
     return res.status(403).json({ message: "Coordinator access required" });
@@ -76,8 +84,14 @@ export async function registerRoutes(
   
   // Session setup
   const MemoryStoreSession = MemoryStore(session);
+  const sessionSecret = process.env.SESSION_SECRET;
+  
+  if (!sessionSecret) {
+    throw new Error("SESSION_SECRET environment variable is required");
+  }
+  
   app.use(session({
-    secret: process.env.SESSION_SECRET || "placement-management-secret-key-2024",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: new MemoryStoreSession({
@@ -151,7 +165,6 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
-      console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
     }
   });
@@ -162,30 +175,30 @@ export async function registerRoutes(
       const data = studentRegisterSchema.parse(req.body);
       
       // Verify invite code
-      const coordinator = await storage.getCoordinatorByInviteCode((data as any).inviteCode);
+      const coordinator = await storage.getCoordinatorByInviteCode(data.inviteCode);
       if (!coordinator) {
         return res.status(400).json({ message: "Invalid invite code" });
       }
       
       // Check if email already exists
-      const existingStudent = await storage.getStudentByEmail((data as any).email);
+      const existingStudent = await storage.getStudentByEmail(data.email);
       if (existingStudent) {
         return res.status(400).json({ message: "Email already registered" });
       }
       
       // Hash password
-      const hashedPassword = await bcrypt.hash((data as any).password, 10);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
       
       // Create student
       const student = await storage.createStudent({
-        email: (data as any).email,
+        email: data.email,
         password: hashedPassword,
-        name: (data as any).name,
-        rollNumber: (data as any).rollNumber,
-        branch: (data as any).branch,
-        graduationYear: (data as any).graduationYear,
-        cgpa: (data as any).cgpa.toString(),
-        activeBacklogs: (data as any).activeBacklogs,
+        name: data.name,
+        rollNumber: data.rollNumber,
+        branch: data.branch,
+        graduationYear: data.graduationYear,
+        cgpa: data.cgpa.toString(),
+        activeBacklogs: data.activeBacklogs,
         coordinatorId: coordinator.id
       });
       
@@ -211,7 +224,6 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
-      console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
     }
   });
@@ -274,7 +286,6 @@ export async function registerRoutes(
         message: "Login successful" 
       });
     } catch (error) {
-      console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
     }
   });
@@ -294,7 +305,8 @@ export async function registerRoutes(
   // Get coordinator stats
   app.get("/api/coordinator/stats", requireCoordinator, async (req, res) => {
     try {
-      const coordinatorId = req.session.user!.id;
+      const user = getUser(req);
+      const coordinatorId = user.id;
       
       const students = await storage.getStudentsByCoordinator(coordinatorId);
       const drives = await storage.getDrivesByCoordinator(coordinatorId);
@@ -318,10 +330,9 @@ export async function registerRoutes(
         placedStudents: placedStudents.length,
         placementRate: students.length > 0 ? Math.round((placedStudents.length / students.length) * 100) : 0,
         avgPackage,
-        inviteCode: req.session.user!.inviteCode
+        inviteCode: user.inviteCode
       });
     } catch (error) {
-      console.error("Stats error:", error);
       res.status(500).json({ message: "Failed to get stats" });
     }
   });
@@ -329,7 +340,8 @@ export async function registerRoutes(
   // Get all students for coordinator
   app.get("/api/coordinator/students", requireCoordinator, async (req, res) => {
     try {
-      const coordinatorId = req.session.user!.id;
+      const user = getUser(req);
+      const coordinatorId = user.id;
       
       // Optimized single query with LEFT JOIN to get application counts
       const studentsWithCounts = await db.select({
@@ -356,7 +368,6 @@ export async function registerRoutes(
       
       res.json(studentsWithCounts);
     } catch (error) {
-      console.error("Get students error:", error);
       res.status(500).json({ message: "Failed to get students" });
     }
   });
@@ -366,9 +377,10 @@ export async function registerRoutes(
     try {
       const studentId = parseInt(req.params.id);
       const { placementStatus, placedCompany, placedPackage } = req.body;
+      const user = getUser(req);
       
       const student = await storage.getStudent(studentId);
-      if (!student || student.coordinatorId !== req.session.user!.id) {
+      if (!student || student.coordinatorId !== user.id) {
         return res.status(404).json({ message: "Student not found" });
       }
       
@@ -380,7 +392,6 @@ export async function registerRoutes(
       
       res.json(updated);
     } catch (error) {
-      console.error("Update student error:", error);
       res.status(500).json({ message: "Failed to update student" });
     }
   });
@@ -423,7 +434,6 @@ export async function registerRoutes(
       
       res.json(drivesWithCounts);
     } catch (error) {
-      console.error("Get drives error:", error);
       res.status(500).json({ message: "Failed to get drives" });
     }
   });
@@ -443,7 +453,6 @@ export async function registerRoutes(
         registrationsCount: applications.length
       });
     } catch (error) {
-      console.error("Get drive error:", error);
       res.status(500).json({ message: "Failed to get drive" });
     }
   });
@@ -497,7 +506,6 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
-      console.error("Update drive error:", error);
       res.status(500).json({ message: "Failed to update drive" });
     }
   });
@@ -519,7 +527,6 @@ export async function registerRoutes(
 
       res.json({ message: "Drive deleted successfully" });
     } catch (error) {
-      console.error("Delete drive error:", error);
       res.status(500).json({ message: "Failed to delete drive" });
     }
   });
@@ -579,7 +586,6 @@ export async function registerRoutes(
       
       res.json(transformedApplications);
     } catch (error) {
-      console.error("Get applications error:", error);
       res.status(500).json({ message: "Failed to get applications" });
     }
   });
@@ -614,7 +620,6 @@ export async function registerRoutes(
       
       res.json(updated);
     } catch (error) {
-      console.error("Update application status error:", error);
       res.status(500).json({ message: "Failed to update application status" });
     }
   });
@@ -639,8 +644,8 @@ export async function registerRoutes(
         return d.status === "Active" &&
           parseFloat(student.cgpa) >= parseFloat(d.minCgpa) &&
           student.activeBacklogs <= d.maxBacklogs &&
-          d.allowedBranches.includes(student.branch) &&
-          new Date(d.registrationDeadline) > new Date();
+          d.allowedBranches.some(branch => branch.toLowerCase() === student.branch.toLowerCase()) &&
+          new Date(d.registrationDeadline) > new Date(Date.now());
       });
       
       // Upcoming deadlines (within 7 days)
@@ -663,7 +668,6 @@ export async function registerRoutes(
         }
       });
     } catch (error) {
-      console.error("Get student stats error:", error);
       res.status(500).json({ message: "Failed to get stats" });
     }
   });
@@ -710,7 +714,6 @@ export async function registerRoutes(
       
       res.json(transformedApplications);
     } catch (error) {
-      console.error("Get applications error:", error);
       res.status(500).json({ message: "Failed to get applications" });
     }
   });
@@ -718,52 +721,57 @@ export async function registerRoutes(
   // Apply to drive
   app.post("/api/student/apply", requireStudent, async (req, res) => {
     try {
-      const { driveId, resumeId, notes } = req.body;
-      const studentId = req.session.user!.id;
+      // Input validation
+      const applicationSchema = z.object({
+        driveId: z.number().int().positive("Drive ID must be a positive integer"),
+        resumeId: z.number().int().positive("Resume ID must be a positive integer"),
+        notes: z.string().optional()
+      });
       
-      console.log("Application request:", { driveId, resumeId, studentId, notes: notes ? "provided" : "none" });
+      const validatedData = applicationSchema.parse(req.body);
+      const { driveId, resumeId, notes } = validatedData;
+      const studentId = req.session.user!.id;
       
       // Check if already applied
       const existing = await storage.getApplicationByStudentAndDrive(studentId, driveId);
       if (existing) {
-        console.log("Student already applied to drive");
         return res.status(400).json({ message: "Already applied to this drive" });
       }
       
       // Verify drive exists and is active
       const drive = await storage.getDrive(driveId);
       if (!drive) {
-        console.log("Drive not found:", driveId);
         return res.status(400).json({ message: "Drive not found" });
       }
       
       if (drive.status !== "Active") {
-        console.log("Drive not active:", drive.status);
         return res.status(400).json({ message: "Drive not available" });
       }
       
-      // Check deadline
-      if (new Date(drive.registrationDeadline) < new Date()) {
-        console.log("Deadline passed:", drive.registrationDeadline);
+      // Check deadline with proper timezone handling
+      const now = new Date();
+      const deadline = new Date(drive.registrationDeadline);
+      // Adjust for timezone to ensure accurate comparison
+      const timezoneOffset = deadline.getTimezoneOffset() * 60 * 1000;
+      const localDeadline = new Date(deadline.getTime() + timezoneOffset);
+      
+      if (localDeadline <= now) {
         return res.status(400).json({ message: "Registration deadline has passed" });
       }
       
       // Verify resume belongs to student
       const resume = await storage.getResume(resumeId);
       if (!resume) {
-        console.log("Resume not found:", resumeId);
         return res.status(400).json({ message: "Resume not found" });
       }
       
       if (resume.studentId !== studentId) {
-        console.log("Resume belongs to different student:", resume.studentId, studentId);
         return res.status(400).json({ message: "Invalid resume" });
       }
       
       // Check eligibility
       const student = await storage.getStudent(studentId);
       if (!student) {
-        console.log("Student not found:", studentId);
         return res.status(404).json({ message: "Student not found" });
       }
       
@@ -771,21 +779,17 @@ export async function registerRoutes(
       const requiredCgpa = parseFloat(drive.minCgpa);
       
       if (studentCgpa < requiredCgpa) {
-        console.log("CGPA requirement not met:", studentCgpa, requiredCgpa);
         return res.status(400).json({ message: "CGPA does not meet requirements" });
       }
       
       if (student.activeBacklogs > drive.maxBacklogs) {
-        console.log("Too many backlogs:", student.activeBacklogs, drive.maxBacklogs);
         return res.status(400).json({ message: "Too many active backlogs" });
       }
       
-      if (!drive.allowedBranches.includes(student.branch)) {
-        console.log("Branch not eligible:", student.branch, drive.allowedBranches);
+      if (!drive.allowedBranches.some(branch => branch.toLowerCase() === student.branch.toLowerCase())) {
         return res.status(400).json({ message: "Branch not eligible for this drive" });
       }
       
-      console.log("Creating application...");
       const application = await storage.createApplication({
         driveId,
         studentId,
@@ -793,12 +797,8 @@ export async function registerRoutes(
         notes
       });
       
-      console.log("Application created successfully:", application.id);
       res.json(application);
     } catch (error) {
-      console.error("Apply error:", error instanceof Error ? error.message : "Unknown error");
-      
-      // Provide more specific error messages
       let errorMessage = "Failed to apply to drive";
       if (error instanceof Error) {
         if (error.message.includes("already applied")) {
@@ -841,7 +841,6 @@ export async function registerRoutes(
       await storage.deleteApplication(appId);
       res.json({ message: "Application withdrawn" });
     } catch (error) {
-      console.error("Withdraw error:", error);
       res.status(500).json({ message: "Failed to withdraw application" });
     }
   });
@@ -862,7 +861,6 @@ export async function registerRoutes(
       }));
       res.json(resumeList);
     } catch (error) {
-      console.error("Get resumes error:", error);
       res.status(500).json({ message: "Failed to get resumes" });
     }
   });
@@ -892,7 +890,6 @@ export async function registerRoutes(
         uploadedAt: resume.uploadedAt
       });
     } catch (error) {
-      console.error("Upload resume error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to upload resume" });
     }
   });
@@ -920,7 +917,6 @@ export async function registerRoutes(
       
       res.json({ fileContent: resume.fileContent });
     } catch (error) {
-      console.error("Get resume content error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to get resume content" });
     }
   });
@@ -937,7 +933,6 @@ export async function registerRoutes(
       
       res.json({ message: "Default resume updated" });
     } catch (error) {
-      console.error("Set default resume error:", error);
       res.status(500).json({ message: "Failed to set default resume" });
     }
   });
@@ -946,16 +941,30 @@ export async function registerRoutes(
   app.delete("/api/resumes/:id", requireStudent, async (req, res) => {
     try {
       const resumeId = parseInt(req.params.id);
+      const user = getUser(req);
       const resume = await storage.getResume(resumeId);
       
-      if (!resume || resume.studentId !== req.session.user!.id) {
+      if (!resume || resume.studentId !== user.id) {
         return res.status(404).json({ message: "Resume not found" });
       }
       
-      await storage.deleteResume(resumeId);
-      res.json({ message: "Resume deleted" });
+      // Check if this resume is used in any applications and warn user
+      const applications = await storage.getApplicationsByResume(resumeId);
+      let warningMessage = "";
+      if (applications.length > 0) {
+        warningMessage = `Note: ${applications.length} application(s) using this resume will also be deleted.`;
+      }
+      
+      const success = await storage.deleteResume(resumeId);
+      if (success) {
+        res.json({ 
+          message: "Resume deleted successfully" + (warningMessage ? ". " + warningMessage : ""),
+          warning: applications.length > 0 ? warningMessage : undefined
+        });
+      } else {
+        res.status(500).json({ message: "Failed to delete resume" });
+      }
     } catch (error) {
-      console.error("Delete resume error:", error);
       res.status(500).json({ message: "Failed to delete resume" });
     }
   });
@@ -965,7 +974,13 @@ export async function registerRoutes(
   // Analyze resume against job description
   app.post("/api/analyze", requireStudent, async (req, res) => {
     try {
-      const { applicationId } = req.body;
+      // Input validation
+      const analyzeSchema = z.object({
+        applicationId: z.number().int().positive("Application ID must be a positive integer")
+      });
+      
+      const validatedData = analyzeSchema.parse(req.body);
+      const { applicationId } = validatedData;
       
       const application = await storage.getApplication(applicationId);
       if (!application || application.studentId !== req.session.user!.id) {
@@ -1071,7 +1086,6 @@ Respond in the following JSON format only:
         suggestions: analysis.suggestions
       });
     } catch (error) {
-      console.error("Analysis error:", error instanceof Error ? error.message : "Unknown error");
       res.status(500).json({ message: "Failed to analyze resume" });
     }
   });
@@ -1127,7 +1141,6 @@ Respond in the following JSON format only:
       
       res.json(transformedDiscussions);
     } catch (error) {
-      console.error("Get discussions error:", error);
       res.status(500).json({ message: "Failed to get discussions" });
     }
   });
@@ -1150,7 +1163,6 @@ Respond in the following JSON format only:
       
       res.json(discussion);
     } catch (error) {
-      console.error("Create discussion error:", error);
       res.status(500).json({ message: "Failed to create discussion" });
     }
   });
@@ -1169,7 +1181,6 @@ Respond in the following JSON format only:
         res.json({ liked: true });
       }
     } catch (error) {
-      console.error("Like discussion error:", error);
       res.status(500).json({ message: "Failed to like discussion" });
     }
   });
@@ -1189,7 +1200,6 @@ Respond in the following JSON format only:
       
       res.json({ message: "Discussion deleted successfully" });
     } catch (error) {
-      console.error("Delete discussion error:", error);
       res.status(500).json({ message: "Failed to delete discussion" });
     }
   });
@@ -1229,7 +1239,6 @@ Respond in the following JSON format only:
       
       res.json(transformedReplies);
     } catch (error) {
-      console.error("Get replies error:", error);
       res.status(500).json({ message: "Failed to get replies" });
     }
   });
@@ -1252,7 +1261,6 @@ Respond in the following JSON format only:
       
       res.json(reply);
     } catch (error) {
-      console.error("Create reply error:", error);
       res.status(500).json({ message: "Failed to create reply" });
     }
   });
@@ -1277,7 +1285,6 @@ Respond in the following JSON format only:
       
       res.json(studentList);
     } catch (error) {
-      console.error("Get students error:", error);
       res.status(500).json({ message: "Failed to get students" });
     }
   });
@@ -1298,7 +1305,6 @@ Respond in the following JSON format only:
       
       res.json(messagesWithOwnership);
     } catch (error) {
-      console.error("Get messages error:", error);
       res.status(500).json({ message: "Failed to get messages" });
     }
   });
@@ -1334,7 +1340,6 @@ Respond in the following JSON format only:
       
       res.json({ ...message, isOwn: true });
     } catch (error) {
-      console.error("Send message error:", error);
       res.status(500).json({ message: "Failed to send message" });
     }
   });

@@ -335,8 +335,8 @@ export function DriveRegistrationsModal({
   const handleStatusChange = (studentId: number, newStatus: string) => {
     onUpdateStatus(studentId, newStatus);
     toast({
-      title: "Status Updated",
-      description: "Student status has been updated successfully.",
+      title: "Updating Status",
+      description: "Student status is being updated...",
     });
   };
 
