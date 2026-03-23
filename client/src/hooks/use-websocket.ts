@@ -32,8 +32,13 @@ export function useWebSocket({
   const connect = useCallback(() => {
     if (!userId || !userType) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+  const wsBaseUrl =
+  import.meta.env.VITE_WS_URL ||
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:5003`;
+
+  const wsUrl = wsBaseUrl.endsWith('/ws')
+    ? wsBaseUrl
+    : `${wsBaseUrl}/ws`;
 
     try {
       const ws = new WebSocket(wsUrl);

@@ -179,7 +179,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-                <p className="text-muted-foreground">ABC University of Technology</p>
+                <p className="text-muted-foreground">Madhav Institute of Technology and Science, Gwalior</p>
               </div>
               <Card className="p-4 flex items-center gap-3">
                 <div>

@@ -11,7 +11,7 @@ const wss = new WebSocketServer({ noServer: true });
 
 // Handle only the dedicated /ws path so Vite HMR /vite/ws is unaffected
 httpServer.on('upgrade', (req, socket, head) => {
-  if (req.url === '/ws') {
+  if (req.url?.startsWith('/ws')) {
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit('connection', ws, req);
     });
@@ -206,6 +206,7 @@ app.use(
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
+    limit: '10mb',
   }),
 );
 
@@ -216,7 +217,7 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 export function log(message: string, source = "express") {
   // Only log in development or for important messages
@@ -274,7 +275,7 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
 
 
-  const port = parseInt(process.env.PORT || "5003", 10);
+  const port = parseInt(process.env.PORT || "5005", 10);
   httpServer.listen(
     {
       port,

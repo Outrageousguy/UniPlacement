@@ -228,7 +228,7 @@ export function CoordinatorRegisterForm({
         <Label htmlFor="coord-university">University Name</Label>
         <Input
           id="coord-university"
-          placeholder="ABC University of Technology"
+          placeholder="Madhav Institute of Technology and Science, Gwalior"
           value={formData.universityName}
           onChange={(e) =>
             setFormData({ ...formData, universityName: e.target.value })
@@ -454,7 +454,9 @@ export function StudentRegisterForm({
             }
           >
             <SelectTrigger data-testid="select-active-backlogs">
-              <SelectValue placeholder="Select" />
+              <SelectValue placeholder="Select backlogs">
+                {formData.activeBacklogs}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {[0, 1, 2, 3, 4, 5].map((num) => (

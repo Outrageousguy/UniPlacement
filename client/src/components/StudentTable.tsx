@@ -33,7 +33,7 @@ interface Student {
   rollNumber: string;
   branch: string;
   graduationYear: number;
-  cgpa: number;
+  cgpa: string; // Changed from number to string to match database response
   activeBacklogs: number;
   placementStatus: "Not Placed" | "Placed" | "Opted Out";
   placedCompany?: string;
@@ -180,7 +180,7 @@ export default function StudentTable({
                           {student.branch}
                         </Badge>
                       </TableCell>
-                      <TableCell>{student.cgpa.toFixed(2)}</TableCell>
+                      <TableCell>{parseFloat(student.cgpa).toFixed(2)}</TableCell>
                       <TableCell>{student.activeBacklogs}</TableCell>
                       <TableCell>{getStatusBadge(student.placementStatus)}</TableCell>
                       <TableCell>{student.registrationsCount}</TableCell>
@@ -246,7 +246,7 @@ export default function StudentTable({
                 </div>
                 <div>
                   <p className="text-muted-foreground">CGPA</p>
-                  <p className="font-medium">{selectedStudent.cgpa.toFixed(2)}</p>
+                  <p className="font-medium">{parseFloat(selectedStudent.cgpa).toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Active Backlogs</p>
