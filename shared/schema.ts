@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, pgEnum, Index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,6 +8,8 @@ export const userRoleEnum = pgEnum("user_role", ["coordinator", "student"]);
 export const driveStatusEnum = pgEnum("drive_status", ["Active", "Completed", "Cancelled"]);
 export const applicationStatusEnum = pgEnum("application_status", ["Registered", "Shortlisted", "Interview", "Selected", "Rejected"]);
 export const placementStatusEnum = pgEnum("placement_status", ["Not Placed", "Placed", "Opted Out"]);
+export const jobTypeEnum = pgEnum("job_type", ["internship", "full-time", "part-time", "remote"]);
+export const regionEnum = pgEnum("region", ["india", "global", "restricted"]);
 
 // Coordinators table
 export const coordinators = pgTable("coordinators", {
@@ -139,6 +141,43 @@ export const aiAnalyses = pgTable("ai_analyses", {
   suggestions: text("suggestions").array().notNull().default([]),
   analyzedAt: timestamp("analyzed_at").defaultNow().notNull()
 });
+
+// Enums for extended opportunities
+export const jobFieldEnum = pgEnum("job_field", ["CS", "Electrical", "Mechanical", "Civil", "Chemical", "Other"]);
+export const jobModeEnum = pgEnum("job_mode", ["remote", "onsite", "hybrid"]);
+
+// External opportunities table
+export const externalOpportunities = pgTable("external_opportunities", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  externalId: text("external_id").notNull().unique(),
+  title: text("title").notNull(),
+  company: text("company").notNull(),
+  location: text("location").notNull(),
+  jobType: jobTypeEnum("job_type").notNull(),
+  salary: text("salary"),
+  description: text("description").notNull(),
+  requirements: text("requirements").array().notNull().default([]),
+  applicationUrl: text("application_url").notNull(),
+  source: text("source").notNull(),
+  postedDate: timestamp("posted_date").notNull(),
+  deadline: timestamp("deadline"),
+  isActive: boolean("is_active").notNull().default(true),
+  region: regionEnum("region").notNull().default("global"),
+  field: jobFieldEnum("field").notNull().default("Other"),
+  mode: jobModeEnum("mode").notNull().default("onsite"),
+  isGovernment: boolean("is_government").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  externalIdIdx: index("external_id_idx").on(table.externalId),
+  sourceIdx: index("source_idx").on(table.source),
+  postedDateIdx: index("posted_date_idx").on(table.postedDate),
+  jobTypeIdx: index("job_type_idx").on(table.jobType),
+  regionIdx: index("region_idx").on(table.region),
+  fieldIdx: index("field_idx").on(table.field),
+  modeIdx: index("mode_idx").on(table.mode),
+  isGovernmentIdx: index("is_government_idx").on(table.isGovernment),
+}));
 
 // Relations
 export const coordinatorsRelations = relations(coordinators, ({ many }) => ({
@@ -416,3 +455,37 @@ export const studentRegisterSchema = insertStudentSchema.extend({
 export type LoginData = z.infer<typeof loginSchema>;
 export type CoordinatorRegisterData = z.infer<typeof coordinatorRegisterSchema>;
 export type StudentRegisterData = z.infer<typeof studentRegisterSchema>;
+
+// External opportunities schemas
+export const insertExternalOpportunitySchema = createInsertSchema(externalOpportunities, {
+  externalId: z.string(),
+  title: z.string().min(1),
+  company: z.string().min(1),
+  location: z.string().min(1),
+  jobType: z.enum(["internship", "full_time", "part_time", "remote"]),
+  salary: z.string().optional(),
+  description: z.string().min(1),
+  requirements: z.array(z.string()),
+  applicationUrl: z.string().url(),
+  source: z.string().min(1),
+  postedDate: z.coerce.date(),
+  deadline: z.coerce.date().optional(),
+  isActive: z.boolean(),
+}).pick({
+  externalId: true,
+  title: true,
+  company: true,
+  location: true,
+  jobType: true,
+  salary: true,
+  description: true,
+  requirements: true,
+  applicationUrl: true,
+  source: true,
+  postedDate: true,
+  deadline: true,
+  isActive: true,
+});
+
+export type InsertExternalOpportunity = z.infer<typeof insertExternalOpportunitySchema>;
+export type ExternalOpportunity = typeof externalOpportunities.$inferSelect;

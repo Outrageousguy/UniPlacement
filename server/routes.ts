@@ -20,12 +20,23 @@ import {
   discussionReplies,
   applications,
   drives,
-  resumes
+  resumes,
+  externalOpportunities
 } from "@shared/schema";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
 import { broadcastToUser } from "./index";
 import { eq, desc, sql, asc } from "drizzle-orm";
+import { ScraperManager } from "./scrapers/index";
+import {
+  getOpportunities,
+  searchOpportunities,
+  getOpportunityById,
+  refreshOpportunities,
+  getOpportunitiesStats,
+  cleanupOpportunities
+} from './extended_opportunities/routes';
+
 
 // Session type augmentation
 declare module "express-session" {
@@ -1344,8 +1355,179 @@ Respond in the following JSON format only:
     }
   });
 
+  // ==================== EXTERNAL OPPORTUNITIES ROUTES ====================
+
+// Utility: sanitize input
+const clean = (v: any): string | undefined => {
+  return typeof v === "string" && v.trim() !== "" ? v.trim() : undefined;
+};
 
 
 
-  return httpServer;
+// ==================== GET LIST ====================
+app.get("/api/external-opportunities", async (req, res) => {
+  try {
+    let {
+      jobType,
+      location,
+      source,
+      search,
+      region,
+      limit = "50",
+      offset = "0"
+    } = req.query;
+
+    // sanitize inputs
+    jobType = clean(jobType);
+    location = clean(location);
+    source = clean(source);
+    search = clean(search);
+    region = clean(region);
+
+    // normalize "all"
+    if (jobType === "all") jobType = undefined;
+    if (region === "all") region = undefined;
+
+    const safeLimit = Math.min(parseInt(limit as string) || 50, 100);
+    const safeOffset = Math.max(parseInt(offset as string) || 0, 0);
+
+    const filters = {
+      jobType: jobType as string | undefined,
+      location: location as string | undefined,
+      source: source as string | undefined,
+      search: search as string | undefined,
+      region: region as string | undefined,
+      limit: safeLimit,
+      offset: safeOffset
+    };
+
+    const opportunities = await storage.getExternalOpportunities(filters);
+
+    // 🔥 FIXED: Return message when no jobs found for specific filter
+    if (opportunities.length === 0 && (jobType || location || source || search || region)) {
+      return res.json({
+        message: "No jobs found matching your criteria. Try adjusting your filters.",
+        opportunities: []
+      });
+    }
+
+    res.json(opportunities);
+  } catch (error) {
+    console.error("Error fetching external opportunities:", error);
+    res.status(500).json({
+      message: "Failed to fetch external opportunities"
+    });
+  }
+});
+
+// ==================== GET BY ID ====================
+app.get("/api/external-opportunities/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid ID" });
+    }
+
+    const opportunity = await storage.getOpportunityById(id);
+
+    if (!opportunity) {
+      return res.status(404).json({ message: "Opportunity not found" });
+    }
+
+    res.json(opportunity);
+  } catch (error) {
+    console.error("Error fetching external opportunity:", error);
+    res.status(500).json({
+      message: "Failed to fetch external opportunity"
+    });
+  }
+});
+
+// ==================== REFRESH (NON-BLOCKING SCRAPER) ====================
+app.post("/api/external-opportunities/refresh", async (req, res) => {
+  try {
+    console.log("External opportunities refresh triggered...");
+
+    // Use the new service instead of direct scraper manager
+    const { ExtendedOpportunitiesService } = await import('./extended_opportunities/service.js');
+    const opportunitiesService = new ExtendedOpportunitiesService();
+    
+    // Run in background
+    setImmediate(async () => {
+      try {
+        const result = await opportunitiesService.scrapeAndSaveJobs();
+        console.log(`Background scraping completed: ${result.added} added, ${result.updated} updated`);
+      } catch (error) {
+        console.error("Background scraping error:", error);
+      }
+    });
+
+    res.json({
+      message: "External opportunities refresh started. New jobs will be available shortly.",
+      status: "processing"
+    });
+
+  } catch (error) {
+    console.error("Error triggering refresh:", error);
+    res.status(500).json({
+      message: "Failed to start refresh process"
+    });
+  }
+});
+
+// ==================== STATS (OPTIMIZED) ====================
+app.get("/api/external-opportunities/stats", async (req, res) => {
+  try {
+    const data = await storage.getExternalOpportunities({
+      limit: 5000
+    });
+
+    const stats = data.reduce(
+      (acc, job) => {
+        acc.total++;
+
+        acc.bySource[job.source] =
+          (acc.bySource[job.source] || 0) + 1;
+
+        acc.byJobType[job.jobType] =
+          (acc.byJobType[job.jobType] || 0) + 1;
+
+        return acc;
+      },
+      {
+        total: 0,
+        bySource: {} as Record<string, number>,
+        byJobType: {} as Record<string, number>
+      }
+    );
+
+    res.json(stats);
+  } catch (error) {
+    console.error("Error fetching external opportunities stats:", error);
+    res.status(500).json({
+      message: "Failed to fetch external opportunities stats"
+    });
+  }
+});
+
+// GET /api/opportunities - List opportunities with filters
+app.get("/api/opportunities", getOpportunities);
+
+// GET /api/opportunities/search - Search opportunities
+app.get("/api/opportunities/search", searchOpportunities);
+
+// GET /api/opportunities/:id - Get opportunity details
+app.get("/api/opportunities/:id", getOpportunityById);
+
+// POST /api/opportunities/refresh - Trigger scraping (background)
+app.post("/api/opportunities/refresh", refreshOpportunities);
+
+// GET /api/opportunities/stats - Get statistics
+app.get("/api/opportunities/stats", getOpportunitiesStats);
+
+// POST /api/opportunities/cleanup - Cleanup old jobs (admin only)
+app.post("/api/opportunities/cleanup", requireCoordinator, cleanupOpportunities);
+
+return httpServer;
 }

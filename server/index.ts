@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { cronScheduler } from "./cron";
 
 const app = express();
 const httpServer = createServer(app);
@@ -283,6 +284,14 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port http://localhost:${port}`);
+      
+      // Start the cron scheduler after server is ready
+      if (process.env.NODE_ENV === "production") {
+        cronScheduler.start();
+        log("Cron scheduler started for production");
+      } else {
+        log("Cron scheduler disabled in development");
+      }
     },
   );
 })();

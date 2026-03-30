@@ -27,6 +27,7 @@ import AIAnalysis from "@/components/AIAnalysis";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
 import Community from "@/components/Community";
+import { ExtendedOpportunities } from "@/components/ExtendedOpportunities";
 import { useWebSocket } from "@/hooks/use-websocket";
 import {
   Building2,
@@ -988,6 +989,12 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
               onView={handleViewResume}
               isUploading={uploadResumeMutation.isPending}
             />
+          </div>
+        )}
+
+        {activeTab === "External Opportunities" && (
+          <div className="space-y-6">
+            <ExtendedOpportunities />
           </div>
         )}
 
