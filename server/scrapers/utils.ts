@@ -196,17 +196,26 @@ export function generateExternalId(source: string, title: string, company: strin
  * Validate and normalize job data
  */
 export function validateJob(job: ScrapedJob): ScrapedJob | null {
+  console.log(`Validating job: "${job.title}" - Company: "${job.company}" - URL: "${job.applicationUrl}"`);
+  
   if (!job.title || !job.company || !job.applicationUrl) {
+    console.log(`Job validation failed - Missing required fields:`, {
+      title: !!job.title,
+      company: !!job.company,
+      applicationUrl: !!job.applicationUrl
+    });
     return null;
   }
   
   // Clean and validate URL
   try {
     new URL(job.applicationUrl);
-  } catch {
+  } catch (error) {
+    console.log(`Job validation failed - Invalid URL: ${job.applicationUrl}`, error);
     return null;
   }
   
+  console.log(`Job validation passed for: "${job.title}"`);
   return {
     ...job,
     title: job.title.trim(),

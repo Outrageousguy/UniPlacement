@@ -26,9 +26,7 @@ import ResumeManager from "@/components/ResumeManager";
 import AIAnalysis from "@/components/AIAnalysis";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
-import Community from "@/components/Community";
 import { ExtendedOpportunities } from "@/components/ExtendedOpportunities";
-import { useWebSocket } from "@/hooks/use-websocket";
 import {
   Building2,
   Users,
@@ -40,6 +38,7 @@ import {
   Clock,
   Copy,
 } from "lucide-react";
+import "./styles/mits-landing.css";
 
 function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -417,7 +416,6 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
 
 function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [viewingResume, setViewingResume] = useState<{ id: number; name: string; content: string } | null>(null);
   const { toast } = useToast();
 
@@ -436,57 +434,6 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     enabled: !!user,
   });
 
-  // Community queries
-  const { data: discussions = [] } = useQuery<any[]>({
-    queryKey: ["/api/discussions"],
-    enabled: !!user,
-  });
-
-  const { data: students = [] } = useQuery<any[]>({
-    queryKey: ["/api/students"],
-    enabled: !!user,
-  });
-
-  // Messages query - only fetch when a student is selected
-  const { data: messages = [] } = useQuery<{
-    id: number;
-    senderId: number;
-    receiverId: number;
-    content: string;
-    isRead: boolean;
-    createdAt: string;
-    isOwn: boolean;
-  }[]>({
-    queryKey: ["/api/messages", selectedStudent?.id],
-    queryFn: async () => {
-      if (!selectedStudent) return [];
-      const response = await apiRequest("GET", `/api/messages/${selectedStudent.id}`);
-      return response.json();
-    },
-    enabled: !!user && !!selectedStudent,
-  });
-
-  // WebSocket for real-time chat
-  const {
-    isConnected: wsConnected,
-    onlineUsers,
-    sendChatMessage,
-    sendTyping
-  } = useWebSocket({
-    userId: user?.id,
-    userType: 'student',
-    onNewMessage: (message) => {
-      // Add new message to current conversation if it's with the selected student
-      if (selectedStudent && (message.senderId === selectedStudent.id || message.receiverId === selectedStudent.id)) {
-        // Invalidate messages query to refetch
-        queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedStudent.id] });
-      }
-    },
-    onOnlineStatusUpdate: (onlineUsers) => {
-      // Update online status in students list
-      // This will be handled by the Community component
-    }
-  });
 
   // Resume view handler
   const handleViewResume = async (resumeId: number) => {
@@ -587,93 +534,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     },
   });
 
-  // Delete discussion mutation
-  const deleteDiscussionMutation = useMutation({
-    mutationFn: async (discussionId: number) => {
-      await apiRequest("DELETE", `/api/discussions/${discussionId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
-      toast({
-        title: "Discussion Deleted Successfully",
-        description: "The discussion has been permanently deleted",
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Delete discussion error:", error);
-      toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete discussion. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  
 
-  // Community mutations
-  const createDiscussionMutation = useMutation({
-    mutationFn: async ({ title, content, tags }: { title: string; content: string; tags: string[] }) => {
-      const response = await apiRequest("POST", "/api/discussions", {
-        title,
-        content,
-        tags,
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
-    },
-    onError: (error) => {
-      console.error("Create discussion error:", error);
-      toast({
-        title: "Failed to Create Discussion",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const likeDiscussionMutation = useMutation({
-    mutationFn: async (discussionId: number) => {
-      const response = await apiRequest("POST", `/api/discussions/${discussionId}/like`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/discussions"] });
-    },
-    onError: (error) => {
-      console.error("Like discussion error:", error);
-      toast({
-        title: "Failed to Like Discussion",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async ({ receiverId, content }: { receiverId: number; content: string }) => {
-      const response = await apiRequest("POST", "/api/messages", {
-        receiverId,
-        content,
-      });
-      return response.json();
-    },
-    onSuccess: (data, variables) => {
-      // Send via WebSocket for real-time delivery
-      sendChatMessage(variables.receiverId, variables.content);
-
-      // Invalidate messages query to ensure local state is updated
-      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedStudent?.id] });
-    },
-    onError: (error) => {
-      console.error("Send message error:", error);
-      toast({
-        title: "Failed to Send Message",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Apply to drive mutation
   const applyToDriveMutation = useMutation({
@@ -998,56 +860,7 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
           </div>
         )}
 
-        {activeTab === "Community" && (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-semibold tracking-tight">Community</h1>
-            <Community
-              discussions={discussions}
-              students={students}
-              messages={messages}
-              onlineUsers={onlineUsers}
-              user={user}
-              onCreateDiscussion={async (title, content, tags) => {
-                try {
-                  await createDiscussionMutation.mutateAsync({ title, content, tags });
-                  toast({
-                    title: "Discussion Posted Successfully",
-                    description: "Your discussion is now visible to everyone",
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onSendMessage={async (studentId, message) => {
-                try {
-                  await sendMessageMutation.mutateAsync({ receiverId: studentId, content: message });
-                  // Toast is handled in WebSocket message handler
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onLikeDiscussion={async (discussionId) => {
-                try {
-                  await likeDiscussionMutation.mutateAsync(discussionId);
-                  // Toast is handled in mutation
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onDeleteDiscussion={async (discussionId) => {
-                try {
-                  await deleteDiscussionMutation.mutateAsync(discussionId);
-                  // Toast is handled in mutation
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onSelectStudent={setSelectedStudent}
-              selectedStudent={selectedStudent}
-            />
-          </div>
-        )}
-
+        
         {/* Resume Viewer Dialog */}
         <Dialog open={!!viewingResume} onOpenChange={(open) => !open && setViewingResume(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
@@ -1092,81 +905,618 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
 
 function LandingPage({ onSelectRole }: { onSelectRole: (role: "coordinator" | "student" | "auth") => void }) {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            className="flex items-center gap-2.5 px-2"
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            data-testid="button-logo-landing"
-          >
-            <GraduationCap className="w-7 h-7 text-foreground" />
-            <span className="font-semibold text-lg">UniPlacement</span>
-          </Button>
-          <Button variant="ghost" onClick={() => onSelectRole("auth")} data-testid="button-login-header">
-            Sign In
-          </Button>
+    <div className="landing-page">
+      <nav id="navbar">
+        <a
+          href="#top"
+          className="nav-brand"
+          onClick={(e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <div className="nav-logo-box">M</div>
+          <div className="nav-institute">
+            <span className="nav-title">UniPlacement</span>
+            <span className="nav-sub">MITS Gwalior · T&amp;P Cell</span>
+          </div>
+        </a>
+        <div className="nav-links">
+          <a href="#portals">Portals</a>
+          <a href="#how">How it works</a>
+          <a href="https://web.mitsgwalior.in" target="_blank" rel="noreferrer">
+            MITS Website ↗
+          </a>
         </div>
-      </header>
+        <div className="nav-actions">
+          <button
+            className="btn-nav-ghost"
+            type="button"
+            onClick={() => onSelectRole("auth")}
+          >
+            Sign In
+          </button>
+          <button
+            className="btn-nav-gold"
+            type="button"
+            onClick={() => onSelectRole("auth")}
+          >
+            Get Started
+          </button>
+        </div>
+      </nav>
 
-      <main className="max-w-6xl mx-auto px-6">
-        <div className="text-center py-24 md:py-32">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight mb-6 leading-[1.1]">
+      <main id="top">
+        {/* HERO */}
+        <section className="hero">
+          <div className="hero-grid-bg" />
+          <div className="hero-glow" />
+          <div className="hero-glow-2" />
+
+          <div className="mits-badge">
+            <div className="mits-badge-dot" />
+            Madhav Institute of Technology &amp; Science, Gwalior — NAAC A++
+          </div>
+
+          <h1 className="hero-headline">
             Campus placements,
             <br />
-            <span className="text-muted-foreground">simplified.</span>
+            <em>reimagined</em> for <span>MITS.</span>
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            The modern platform for university placement cells. AI-powered matching, seamless tracking, and beautiful insights.
+          <p className="hero-sub">
+            The dedicated T&amp;P management platform for MITS Gwalior — built for
+            coordinators who manage drives and students who deserve every opportunity.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" className="h-12 px-8 text-base" onClick={() => onSelectRole("auth")} data-testid="button-get-started">
-              Get Started
-            </Button>
-            <Button size="lg" variant="outline" className="h-12 px-8 text-base" onClick={() => onSelectRole("student")} data-testid="button-demo-student">
-              Try Demo
-            </Button>
+
+          <div className="hero-actions">
+            <button
+              className="btn-hero-primary"
+              type="button"
+              onClick={() => onSelectRole("auth")}
+            >
+              Coordinator Login
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button
+              className="btn-hero-outline"
+              type="button"
+              onClick={() => onSelectRole("auth")}
+            >
+              Student Login →
+            </button>
+          </div>
+
+          <p className="hero-note">
+            For all MITS students · Managed by the T&amp;P Cell
+          </p>
+
+          <div className="stats-bar">
+            <div className="stat-cell">
+              <span className="stat-n">94</span>
+              <span className="stat-n">%</span>
+              <div className="stat-l">placement rate</div>
+            </div>
+            <div className="stat-cell">
+              <span className="stat-n">500</span>
+              <span className="stat-n">+</span>
+              <div className="stat-l">companies visit</div>
+            </div>
+            <div className="stat-cell">
+              <span className="stat-n">12 LPA+</span>
+              <div className="stat-l">highest package</div>
+            </div>
+            <div className="stat-cell">
+              <span className="stat-n">A++</span>
+              <div className="stat-l">NAAC grade</div>
+            </div>
+          </div>
+        </section>
+
+        {/* WAVE */}
+        <div className="wave-divider">
+          <svg
+            viewBox="0 0 1440 60"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0,40 C360,0 1080,80 1440,20 L1440,60 L0,60 Z"
+              fill="#FAFAF7"
+            />
+          </svg>
+        </div>
+
+        {/* MARQUEE */}
+        <div className="marquee-section">
+          <div className="marquee-label">
+            Companies that recruit from MITS Gwalior
+          </div>
+          <div className="marquee-wrap">
+            <div className="marquee-track">
+              {[
+                "TCS",
+                "Infosys",
+                "Wipro",
+                "HCL Technologies",
+                "Cognizant",
+                "Capgemini",
+                "Tech Mahindra",
+                "IBM India",
+                "Accenture",
+                "L&T Infotech",
+                "Mphasis",
+                "Mindtree",
+                "NIIT Technologies",
+                "Persistent Systems",
+                // Duplicate set for seamless infinite loop.
+                "TCS",
+                "Infosys",
+                "Wipro",
+                "HCL Technologies",
+                "Cognizant",
+                "Capgemini",
+                "Tech Mahindra",
+                "IBM India",
+                "Accenture",
+                "L&T Infotech",
+                "Mphasis",
+                "Mindtree",
+                "NIIT Technologies",
+                "Persistent Systems",
+              ].map((company, index) => (
+                <div key={`${company}-${index}`} className="marquee-item">
+                  {company}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-24">
-          <Card className="p-8 border-0 bg-muted/50 hover-elevate transition-all duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-foreground/5 flex items-center justify-center mb-6">
-              <Building2 className="w-6 h-6 text-foreground" />
+        {/* PORTALS */}
+        <section className="portals-section" id="portals">
+          <div className="portals-inner">
+            <div className="portals-header">
+              <div className="section-eyebrow">Two Portals. One Platform.</div>
+              <h2 className="section-title">
+                Choose your <em>portal</em>
+              </h2>
+              <p className="section-sub">
+                Each portal is purpose-built for your role in the placement
+                ecosystem.
+              </p>
             </div>
-            <h3 className="font-semibold text-xl mb-3">Drive Management</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Post drives, set eligibility criteria, and track registrations in real-time with an intuitive dashboard.
-            </p>
-          </Card>
-          <Card className="p-8 border-0 bg-muted/50 hover-elevate transition-all duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-foreground/5 flex items-center justify-center mb-6">
-              <Target className="w-6 h-6 text-foreground" />
-            </div>
-            <h3 className="font-semibold text-xl mb-3">Smart Matching</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Students see only eligible opportunities. No confusion, no missed chances, just clarity.
-            </p>
-          </Card>
-          <Card className="p-8 border-0 bg-muted/50 hover-elevate transition-all duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-foreground/5 flex items-center justify-center mb-6">
-              <TrendingUp className="w-6 h-6 text-foreground" />
-            </div>
-            <h3 className="font-semibold text-xl mb-3">AI Insights</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Get intelligent resume analysis and personalized suggestions to improve placement success.
-            </p>
-          </Card>
-        </div>
+            <div className="portal-grid">
+              <div className="portal-card coord">
+                <div className="portal-icon">
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#C8941A"
+                    strokeWidth="1.8"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <path d="M8 21h8M12 17v4" />
+                    <path d="M7 8h10M7 11h6" />
+                  </svg>
+                </div>
+                <h3 className="portal-name">
+                  Coordinator Dashboard
+                </h3>
+                <p className="portal-desc">
+                  Full control over placement drives, student eligibility, company
+                  coordination, and analytics — all in one place.
+                </p>
+                <ul className="portal-features">
+                  <li>Create and manage placement drives with custom eligibility criteria</li>
+                  <li>Track applications, shortlists, and offer letters</li>
+                  <li>Monitor recruitment pipeline with real-time charts</li>
+                  <li>AI-powered shortlisting and resume analysis</li>
+                  <li>Export reports for management and NAAC</li>
+                </ul>
+                <button
+                  className="portal-cta"
+                  type="button"
+                  onClick={() => onSelectRole("auth")}
+                >
+                  Enter Coordinator Portal
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
 
-        <div className="text-center pb-16">
-          <p className="text-sm text-muted-foreground">
-            Trusted by universities worldwide
+              <div className="portal-card student">
+                <div className="portal-icon">
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#E86C2C"
+                    strokeWidth="1.8"
+                  >
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3.5 2 8.5 2 12 0v-5" />
+                  </svg>
+                </div>
+                <h3 className="portal-name">
+                  Student Dashboard
+                </h3>
+                <p className="portal-desc">
+                  Browse drives you&apos;re eligible for, upload and optimize your
+                  resume with AI, track applications, and find external opportunities.
+                </p>
+                <ul className="portal-features">
+                  <li>See only drives matching your branch, CGPA, and year</li>
+                  <li>Upload multiple resumes — AI scores and suggests improvements</li>
+                  <li>Real-time application status and interview schedule</li>
+                  <li>Match score for each drive with AI explanation</li>
+                  <li>External job board with curated opportunities</li>
+                </ul>
+                <button
+                  className="portal-cta"
+                  type="button"
+                  onClick={() => onSelectRole("auth")}
+                >
+                  Enter Student Portal
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* HOW IT WORKS */}
+        <section className="how-section" id="how">
+          <div className="how-inner">
+            <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
+              <div className="section-eyebrow">Process</div>
+              <h2 className="section-title">
+                How it works for <em>everyone</em>
+              </h2>
+            </div>
+            <div className="how-flow">
+              <div>
+                <div className="how-coord-label how-side-label">
+                 <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#C8941A"
+                    strokeWidth="1.8"
+                   >
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <path d="M8 21h8M12 17v4" />
+                    <path d="M7 8h10M7 11h6" />
+                  </svg>
+                  T&amp;P Coordinator Flow
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num coord-num">1</div>
+                  <div>
+                    <div className="how-step-title">Create a Drive</div>
+                    <div className="how-step-desc">
+                      Set company, role, CTC, date, eligibility rules (CGPA, branch,
+                      year, backlogs). Takes under 5 minutes.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num coord-num">2</div>
+                  <div>
+                    <div className="how-step-title">Students Auto-notified</div>
+                    <div className="how-step-desc">
+                      Eligible students instantly receive notification. Ineligible
+                      students see the drive as locked.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num coord-num">3</div>
+                  <div>
+                    <div className="how-step-title">AI Shortlists Candidates</div>
+                    <div className="how-step-desc">
+                      AI ranks applicants by fit, highlights standouts, and flags gaps.
+                      You review and approve.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num coord-num">4</div>
+                  <div>
+                    <div className="how-step-title">Track, Report &amp; Close</div>
+                    <div className="how-step-desc">
+                      Live pipeline view. Digital offer letters. One-click NAAC-ready
+                      reports exportable as PDF or Excel.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="how-student-label how-side-label">
+                 <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#E86C2C"
+                    strokeWidth="1.8"
+                   >
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3.5 2 8.5 2 12 0v-5" />
+                 </svg>
+                  Student Flow
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num student-num">1</div>
+                  <div>
+                    <div className="how-step-title">Set Up Profile Once</div>
+                    <div className="how-step-desc">
+                      Enter branch, CGPA, skills, and upload your resume. AI enriches
+                      your profile and gives you an instant score.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num student-num">2</div>
+                  <div>
+                    <div className="how-step-title">See Your Drives</div>
+                    <div className="how-step-desc">
+                      Only eligible drives appear, filtered automatically. No
+                      scrolling through irrelevant postings. No missed deadlines.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num student-num">3</div>
+                  <div>
+                    <div className="how-step-title">Apply with AI Edge</div>
+                    <div className="how-step-desc">
+                      View your AI match score before applying. See exactly why you
+                      rank high or what to improve to rank higher.
+                    </div>
+                  </div>
+                </div>
+                <div className="how-step">
+                  <div className="how-step-num student-num">4</div>
+                  <div>
+                    <div className="how-step-title">Track &amp; Get Placed</div>
+                    <div className="how-step-desc">
+                      Real-time status: Applied → Shortlisted → Interview → Offer.
+                      Receive digital offer letter directly in the portal.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* STATS */}
+        <section className="stats-banner">
+          <div className="stats-inner">
+            <div className="sb-cell">
+              <div className="sb-n">94%</div>
+              <div className="sb-l">avg. placement rate</div>
+              <div className="sb-d">Industry avg: 68%</div>
+            </div>
+            <div className="sb-cell">
+              <div className="sb-n">500+</div>
+              <div className="sb-l">companies recruiting</div>
+              <div className="sb-d">↑ 47 vs last season</div>
+            </div>
+            <div className="sb-cell">
+              <div className="sb-n">8.4L</div>
+              <div className="sb-l">average package (₹)</div>
+              <div className="sb-d">↑ ₹1.2L vs 2024</div>
+            </div>
+            <div className="sb-cell">
+              <div className="sb-n">1200</div>
+              <div className="sb-l">students on platform</div>
+              <div className="sb-d">All 4 years active</div>
+            </div>
+          </div>
+        </section>
+
+        {/* TESTIMONIALS */}
+        <section className="testi-section">
+          <div className="testi-inner">
+            <div style={{ textAlign: "center" }}>
+              <div className="section-eyebrow">From the Platform</div>
+              <h2 className="section-title">
+                What MITS says about <em>UniPlacement</em>
+              </h2>
+            </div>
+            <div className="testi-grid">
+              <div className="testi-card">
+                <div className="testi-mark">"</div>
+                <p className="testi-q">
+                  Running 40+ drives simultaneously used to mean daily chaos. Now
+                  everything is tracked in one dashboard — I can actually sleep
+                  during placement season.
+                </p>
+                <div className="testi-result">
+                  ⏱ Drive setup time cut from 3 hours to 25 minutes
+                </div>
+                <div className="testi-author">
+                  <div className="testi-av">RS</div>
+                  <div>
+                    <div className="testi-name">Dr. R. Sharma</div>
+                    <div className="testi-role">
+                      T&amp;P Coordinator, MITS Gwalior
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="testi-card">
+                <p className="testi-q">
+                  I used to apply to every drive I could find. Now I only see drives
+                  I actually qualify for, and my AI match score tells me where I
+                  stand before I even apply.
+                </p>
+                <div className="testi-result">
+                  🎯 Applied to 4 drives, got 2 offers
+                </div>
+                <div className="testi-author">
+                  <div className="testi-av">AK</div>
+                  <div>
+                    <div className="testi-name">Aditya Kumar</div>
+                    <div className="testi-role">
+                      CSE Final Year, MITS Gwalior
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="testi-card">
+                <p className="testi-q">
+                  The resume AI flagged things my faculty never told me. I improved my
+                  score from 62 to 89 in a week — and got shortlisted for TCS Digital
+                  the same month.
+                </p>
+                <div className="testi-result">
+                  📈 Resume score 62 → 89, shortlisted in 1 week
+                </div>
+                <div className="testi-author">
+                  <div className="testi-av">PM</div>
+                  <div>
+                    <div className="testi-name">Priya Mishra</div>
+                    <div className="testi-role">
+                      ECE Final Year, MITS Gwalior
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="cta-section">
+          <div className="cta-mits">
+            MITS Gwalior · Training &amp; Placement Cell
+          </div>
+          <h2 className="cta-headline">
+            Ready for your <em>best placement season</em> yet?
+          </h2>
+          <p className="cta-sub">
+            Join every MITS student and coordinator on the platform built for you.
+          </p>
+          <div className="cta-actions">
+            <button
+              className="btn-cta-gold"
+              type="button"
+              onClick={() => onSelectRole("auth")}
+            >
+              Coordinator Login
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button
+              className="btn-cta-outline"
+              type="button"
+              onClick={() => onSelectRole("auth")}
+            >
+              Student Login →
+            </button>
+          </div>
+          <p className="cta-note">
+            For all MITS students · Questions? Contact the T&amp;P Cell at
+            tp@mitsgwalior.in
           </p>
         </div>
+
+        {/* FOOTER */}
+        <footer>
+          <div className="footer-top">
+            <div>
+              <div className="footer-brand-title">UniPlacement</div>
+              <div className="footer-brand-sub">
+                MITS Gwalior · T&amp;P Management System
+              </div>
+              <div className="footer-brand-desc">
+                The official campus placement platform for Madhav Institute of
+                Technology &amp; Science, Gwalior. NAAC A++ Deemed University.
+              </div>
+            </div>
+            <div className="footer-col">
+              <div className="footer-col-title">Platform</div>
+              <a href="#portals">Coordinator Portal</a>
+              <a href="#portals">Student Portal</a>
+            </div>
+            <div className="footer-col">
+              <div className="footer-col-title">MITS</div>
+              <a href="https://web.mitsgwalior.in" target="_blank" rel="noreferrer">
+                MITS Website
+              </a>
+              <a
+                href="https://web.mitsgwalior.in/index.php/recruitment"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Recruitment Page
+              </a>
+              <a href="https://web.mitsgwalior.in/training-internship/about-training-internship" target="_blank" rel="noreferrer">T&amp;P Cell</a>
+              <a href="https://web.mitsgwalior.in/training-internship/contact-person" target="_blank" rel="noreferrer">Contact Us</a>
+            </div>
+            <div className="footer-col">
+              <div className="footer-col-title">Support</div>
+              <a href="#top">Help &amp; FAQ</a>
+              <a href="#top">Privacy Policy</a>
+              <a href="#top">Terms of Use</a>
+              <a href="mailto:tnp@mitsgwalior.in">tnp@mitsgwalior.in</a>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <div className="footer-copy">
+              © 2026 UniPlacement · Madhav Institute of Technology &amp; Science,
+              Gwalior
+            </div>
+            <a
+              href="https://web.mitsgwalior.in"
+              target="_blank"
+              rel="noreferrer"
+              className="footer-mits-link"
+            >
+              web.mitsgwalior.in ↗
+            </a>
+          </div>
+        </footer>
       </main>
     </div>
   );

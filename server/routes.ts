@@ -12,20 +12,14 @@ import {
   insertDriveSchema,
   insertResumeSchema,
   insertApplicationSchema,
-  insertDiscussionSchema,
-  insertDiscussionReplySchema,
-  insertMessageSchema,
-  discussions,
-  students,
-  discussionReplies,
-  applications,
   drives,
+  students,
+  applications,
   resumes,
   externalOpportunities
 } from "@shared/schema";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
-import { broadcastToUser } from "./index";
 import { eq, desc, sql, asc } from "drizzle-orm";
 import { ScraperManager } from "./scrapers/index";
 import {
@@ -118,7 +112,7 @@ export async function registerRoutes(
   
   app.get("/test-db", async (req, res) => {
     try {
-      await db.execute("SELECT 1");
+      await db.execute(sql`SELECT 1`);
       res.send("DB Connected ✅");
     } catch (err) {
       console.error("DB ERROR:", err);
@@ -1097,261 +1091,8 @@ Respond in the following JSON format only:
         suggestions: analysis.suggestions
       });
     } catch (error) {
+      console.error("Error analyzing resume:", error);
       res.status(500).json({ message: "Failed to analyze resume" });
-    }
-  });
-
-  // ==================== COMMUNITY ROUTES ====================
-
-  // Get discussions
-  app.get("/api/discussions", requireAuth, async (req, res) => {
-    try {
-      let coordinatorId: number;
-      
-      if (req.session.user!.role === "coordinator") {
-        coordinatorId = req.session.user!.id;
-      } else {
-        coordinatorId = req.session.user!.coordinatorId!;
-      }
-      
-      // Optimized single query with joins instead of N+1 queries
-      const discussionResults = await db.select({
-        id: discussions.id,
-        title: discussions.title,
-        content: discussions.content,
-        authorId: discussions.authorId,
-        tags: discussions.tags,
-        likesCount: discussions.likesCount,
-        createdAt: discussions.createdAt,
-        authorName: students.name,
-        authorBranch: students.branch,
-        repliesCount: sql<number>`count(${discussionReplies.id})`
-      })
-      .from(discussions)
-      .leftJoin(students, eq(discussions.authorId, students.id))
-      .leftJoin(discussionReplies, eq(discussionReplies.discussionId, discussions.id))
-      .where(eq(students.coordinatorId, coordinatorId))
-      .groupBy(discussions.id, students.name, students.branch)
-      .orderBy(desc(discussions.createdAt));
-      
-      // Transform the results to match expected format
-      const transformedDiscussions = discussionResults.map((d: any) => ({
-        id: d.id,
-        title: d.title,
-        content: d.content,
-        authorId: d.authorId,
-        tags: d.tags,
-        likesCount: d.likesCount,
-        createdAt: d.createdAt,
-        author: {
-          name: d.authorName || "Unknown",
-          branch: d.authorBranch || ""
-        },
-        repliesCount: Number(d.repliesCount) || 0
-      }));
-      
-      res.json(transformedDiscussions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get discussions" });
-    }
-  });
-
-  // Create discussion
-  app.post("/api/discussions", requireStudent, async (req, res) => {
-    try {
-      const { title, content, tags } = req.body;
-      
-      if (!title || !content) {
-        return res.status(400).json({ message: "Title and content are required" });
-      }
-      
-      const discussion = await storage.createDiscussion({
-        title,
-        content,
-        authorId: req.session.user!.id,
-        tags: tags || []
-      });
-      
-      res.json(discussion);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create discussion" });
-    }
-  });
-
-  // Like/unlike discussion
-  app.post("/api/discussions/:id/like", requireStudent, async (req, res) => {
-    try {
-      const discussionId = parseInt(req.params.id);
-      const liked = await storage.likeDiscussion(discussionId, req.session.user!.id);
-      
-      if (!liked) {
-        // Already liked, so unlike
-        await storage.unlikeDiscussion(discussionId, req.session.user!.id);
-        res.json({ liked: false });
-      } else {
-        res.json({ liked: true });
-      }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to like discussion" });
-    }
-  });
-
-  // Delete discussion (only by author)
-  app.delete("/api/discussions/:id", requireStudent, async (req, res) => {
-    try {
-      const discussionId = parseInt(req.params.id);
-      const studentId = req.session.user!.id;
-      
-      // Attempt to delete the discussion (storage method will verify ownership)
-      const success = await storage.deleteDiscussion(discussionId, studentId);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Discussion not found or you don't have permission to delete it" });
-      }
-      
-      res.json({ message: "Discussion deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete discussion" });
-    }
-  });
-
-  // Get discussion replies
-  app.get("/api/discussions/:id/replies", requireAuth, async (req, res) => {
-    try {
-      const discussionId = parseInt(req.params.id);
-      
-      // Optimized single query with JOIN to get author info
-      const enrichedReplies = await db.select({
-        id: discussionReplies.id,
-        discussionId: discussionReplies.discussionId,
-        authorId: discussionReplies.authorId,
-        content: discussionReplies.content,
-        createdAt: discussionReplies.createdAt,
-        authorName: students.name,
-        authorBranch: students.branch
-      })
-      .from(discussionReplies)
-      .leftJoin(students, eq(discussionReplies.authorId, students.id))
-      .where(eq(discussionReplies.discussionId, discussionId))
-      .orderBy(asc(discussionReplies.createdAt));
-      
-      // Transform the results to match expected format
-      const transformedReplies = enrichedReplies.map(reply => ({
-        id: reply.id,
-        discussionId: reply.discussionId,
-        authorId: reply.authorId,
-        content: reply.content,
-        createdAt: reply.createdAt,
-        author: {
-          name: reply.authorName || "Unknown",
-          branch: reply.authorBranch || ""
-        }
-      }));
-      
-      res.json(transformedReplies);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get replies" });
-    }
-  });
-
-  // Create reply
-  app.post("/api/discussions/:id/replies", requireStudent, async (req, res) => {
-    try {
-      const discussionId = parseInt(req.params.id);
-      const { content } = req.body;
-      
-      if (!content) {
-        return res.status(400).json({ message: "Content is required" });
-      }
-      
-      const reply = await storage.createReply({
-        discussionId,
-        authorId: req.session.user!.id,
-        content
-      });
-      
-      res.json(reply);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create reply" });
-    }
-  });
-
-  // Get students for messaging (same university)
-  app.get("/api/students", requireStudent, async (req, res) => {
-    try {
-      const students = await storage.getStudentsByCoordinator(req.session.user!.coordinatorId!);
-      
-      // Filter out current user and only return relevant info
-      const studentList = students
-        .filter(s => s.id !== req.session.user!.id)
-        .map(s => ({
-          id: s.id,
-          name: s.name,
-          branch: s.branch,
-          graduationYear: s.graduationYear,
-          placementStatus: s.placementStatus,
-          placedCompany: s.placedCompany,
-          isOnline: Math.random() > 0.5 // Mock online status
-        }));
-      
-      res.json(studentList);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get students" });
-    }
-  });
-
-  // Get messages with a specific student
-  app.get("/api/messages/:studentId", requireStudent, async (req, res) => {
-    try {
-      const otherStudentId = parseInt(req.params.studentId);
-      const messages = await storage.getMessagesBetweenUsers(req.session.user!.id, otherStudentId);
-      
-      // Mark messages as read
-      await storage.markMessagesAsRead(otherStudentId, req.session.user!.id);
-      
-      const messagesWithOwnership = messages.map(m => ({
-        ...m,
-        isOwn: m.senderId === req.session.user!.id
-      }));
-      
-      res.json(messagesWithOwnership);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get messages" });
-    }
-  });
-
-  // Send message
-  app.post("/api/messages", requireStudent, async (req, res) => {
-    try {
-      const { receiverId, content } = req.body;
-      
-      if (!receiverId || !content) {
-        return res.status(400).json({ message: "Receiver and content are required" });
-      }
-      
-      const message = await storage.createMessage({
-        senderId: req.session.user!.id,
-        receiverId,
-        content
-      });
-      
-      // Broadcast message to recipient via WebSocket
-      broadcastToUser(receiverId, {
-        type: 'new_message',
-        data: {
-          id: message.id,
-          senderId: message.senderId,
-          receiverId: message.receiverId,
-          content: message.content,
-          isRead: message.isRead,
-          createdAt: message.createdAt,
-          isOwn: false
-        }
-      });
-      
-      res.json({ ...message, isOwn: true });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to send message" });
     }
   });
 

@@ -114,17 +114,46 @@ export abstract class BaseScraper {
   }
   
   /**
-   * Safe page navigation with error handling
+   * Safe page navigation with error handling and debugging
    */
   protected async safeNavigate(page: Page, url: string): Promise<boolean> {
     try {
+      console.log(`${this.config.name}: Navigating to ${url}`);
       await page.goto(url, { 
         waitUntil: 'domcontentloaded', 
         timeout: 30000 
       });
+      
+      // Check if page loaded successfully
+      const title = await page.title();
+      console.log(`${this.config.name}: Page title: "${title}"`);
+      
+      // Check for common error indicators
+      const errorSelectors = [
+        '.error, .error-page, .not-found, .404, .500',
+        '[class*="error"], [class*="not-found"]',
+        'body:contains("404"), body:contains("not found")',
+        'body:contains("error"), body:contains("unavailable")'
+      ];
+      
+      for (const errorSelector of errorSelectors) {
+        const errorElement = await page.$(errorSelector).catch(() => null);
+        if (errorElement) {
+          console.log(`${this.config.name}: Detected error page with selector: ${errorSelector}`);
+          return false;
+        }
+      }
+      
+      // Check if page has content
+      const bodyText = await page.evaluate(() => document.body?.innerText || '');
+      if (bodyText.length < 100) {
+        console.log(`${this.config.name}: Page appears to have minimal content (${bodyText.length} chars)`);
+      }
+      
+      console.log(`${this.config.name}: Successfully navigated to ${url}`);
       return true;
     } catch (error) {
-      console.error(`Failed to navigate to ${url}:`, error);
+      console.error(`${this.config.name}: Failed to navigate to ${url}:`, error);
       return false;
     }
   }
@@ -185,8 +214,17 @@ export abstract class BaseScraper {
    * Validate and filter scraped jobs
    */
   protected validateJobs(jobs: ScrapedJob[]): ScrapedJob[] {
-    return jobs
+    console.log(`${this.config.name}: Validating ${jobs.length} jobs`);
+    const validJobs = jobs
       .map(job => validateJob(job))
       .filter((job): job is ScrapedJob => job !== null);
+    
+    console.log(`${this.config.name}: ${validJobs.length} jobs passed validation out of ${jobs.length} total`);
+    
+    if (validJobs.length < jobs.length) {
+      console.log(`${this.config.name}: ${jobs.length - validJobs.length} jobs were filtered out during validation`);
+    }
+    
+    return validJobs;
   }
 }

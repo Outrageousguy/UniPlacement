@@ -90,48 +90,6 @@ export const applications = pgTable("applications", {
   // indexes will be created by database migration
 }));
 
-// Discussions table
-export const discussions = pgTable("discussions", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  authorId: integer("author_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  tags: text("tags").array().notNull().default([]),
-  likesCount: integer("likes_count").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  // indexes will be created by database migration
-}));
-
-// Discussion likes table
-export const discussionLikes = pgTable("discussion_likes", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  discussionId: integer("discussion_id").notNull().references(() => discussions.id, { onDelete: "cascade" }),
-  studentId: integer("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Discussion replies table
-export const discussionReplies = pgTable("discussion_replies", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  discussionId: integer("discussion_id").notNull().references(() => discussions.id, { onDelete: "cascade" }),
-  authorId: integer("author_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Messages table (for student-to-student chat)
-export const messages = pgTable("messages", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  senderId: integer("sender_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  receiverId: integer("receiver_id").notNull().references(() => students.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  isRead: boolean("is_read").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  // indexes will be created by database migration
-}));
-
 // AI Analysis results table
 export const aiAnalyses = pgTable("ai_analyses", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -192,9 +150,6 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   }),
   resumes: many(resumes),
   applications: many(applications),
-  discussions: many(discussions),
-  sentMessages: many(messages, { relationName: "sentMessages" }),
-  receivedMessages: many(messages, { relationName: "receivedMessages" }),
 }));
 
 export const drivesRelations = relations(drives, ({ one, many }) => ({
@@ -229,49 +184,6 @@ export const applicationsRelations = relations(applications, ({ one, many }) => 
   aiAnalyses: many(aiAnalyses),
 }));
 
-export const discussionsRelations = relations(discussions, ({ one, many }) => ({
-  author: one(students, {
-    fields: [discussions.authorId],
-    references: [students.id],
-  }),
-  replies: many(discussionReplies),
-  likes: many(discussionLikes),
-}));
-
-export const discussionRepliesRelations = relations(discussionReplies, ({ one }) => ({
-  discussion: one(discussions, {
-    fields: [discussionReplies.discussionId],
-    references: [discussions.id],
-  }),
-  author: one(students, {
-    fields: [discussionReplies.authorId],
-    references: [students.id],
-  }),
-}));
-
-export const discussionLikesRelations = relations(discussionLikes, ({ one }) => ({
-  discussion: one(discussions, {
-    fields: [discussionLikes.discussionId],
-    references: [discussions.id],
-  }),
-  student: one(students, {
-    fields: [discussionLikes.studentId],
-    references: [students.id],
-  }),
-}));
-
-export const messagesRelations = relations(messages, ({ one }) => ({
-  sender: one(students, {
-    fields: [messages.senderId],
-    references: [students.id],
-    relationName: "sentMessages",
-  }),
-  receiver: one(students, {
-    fields: [messages.receiverId],
-    references: [students.id],
-    relationName: "receivedMessages",
-  }),
-}));
 
 export const aiAnalysesRelations = relations(aiAnalyses, ({ one }) => ({
   application: one(applications, {
@@ -368,38 +280,6 @@ export const insertApplicationSchema = createInsertSchema(applications, {
   notes: true,
 });
 
-export const insertDiscussionSchema = createInsertSchema(discussions, {
-  title: z.string().min(3),
-  content: z.string().min(10),
-  authorId: z.number().int(),
-  tags: z.array(z.string()),
-}).pick({
-  title: true,
-  content: true,
-  authorId: true,
-  tags: true,
-});
-
-export const insertDiscussionReplySchema = createInsertSchema(discussionReplies, {
-  discussionId: z.number().int(),
-  authorId: z.number().int(),
-  content: z.string().min(1),
-}).pick({
-  discussionId: true,
-  authorId: true,
-  content: true,
-});
-
-export const insertMessageSchema = createInsertSchema(messages, {
-  senderId: z.number().int(),
-  receiverId: z.number().int(),
-  content: z.string().min(1),
-}).pick({
-  senderId: true,
-  receiverId: true,
-  content: true,
-});
-
 // Types
 export type InsertCoordinator = z.infer<typeof insertCoordinatorSchema>;
 export type Coordinator = typeof coordinators.$inferSelect;
@@ -415,15 +295,6 @@ export type Resume = typeof resumes.$inferSelect;
 
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Application = typeof applications.$inferSelect;
-
-export type InsertDiscussion = z.infer<typeof insertDiscussionSchema>;
-export type Discussion = typeof discussions.$inferSelect;
-
-export type InsertDiscussionReply = z.infer<typeof insertDiscussionReplySchema>;
-export type DiscussionReply = typeof discussionReplies.$inferSelect;
-
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-export type Message = typeof messages.$inferSelect;
 
 export type AIAnalysis = typeof aiAnalyses.$inferSelect;
 

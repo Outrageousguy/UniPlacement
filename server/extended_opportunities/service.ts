@@ -112,11 +112,14 @@ export class ExtendedOpportunitiesService {
    * Save jobs to database with deduplication
    */
   async saveJobs(jobs: NormalizedJob[]): Promise<{ added: number; updated: number; total: number }> {
+    console.log(`ExtendedOpportunities: Attempting to save ${jobs.length} jobs to database`);
     let added = 0;
     let updated = 0;
     
     for (const job of jobs) {
       try {
+        console.log(`Processing job: "${job.title}" from ${job.source}`);
+        
         // Check if job already exists
         const existing = await db.select()
           .from(externalOpportunities)
@@ -161,6 +164,7 @@ export class ExtendedOpportunitiesService {
       }
     }
     
+    console.log(`ExtendedOpportunities: Save complete - Added: ${added}, Updated: ${updated}, Total processed: ${jobs.length}`);
     return { added, updated, total: jobs.length };
   }
   

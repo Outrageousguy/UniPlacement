@@ -4,12 +4,9 @@ import {
   type Drive, type InsertDrive,
   type Resume, type InsertResume,
   type Application, type InsertApplication,
-  type Discussion, type InsertDiscussion,
-  type DiscussionReply, type InsertDiscussionReply,
-  type Message, type InsertMessage,
   type AIAnalysis,
   type ExternalOpportunity,
-  coordinators, students, drives, resumes, applications, discussions, discussionReplies, discussionLikes, messages, aiAnalyses, externalOpportunities
+  coordinators, students, drives, resumes, applications, aiAnalyses, externalOpportunities
 } from "@shared/schema";
 import { NormalizedJob } from "./scrapers/types.js";
 import { detectRegion } from "./scrapers/utils.js";
@@ -97,23 +94,6 @@ export interface IStorage {
   createApplication(application: InsertApplication): Promise<Application>;
   updateApplication(id: number, data: Partial<Application>): Promise<Application | undefined>;
   deleteApplication(id: number): Promise<boolean>;
-  
-  // Discussions
-  getDiscussion(id: number): Promise<Discussion | undefined>;
-  getDiscussionsByCoordinator(coordinatorId: number): Promise<Discussion[]>;
-  createDiscussion(discussion: InsertDiscussion): Promise<Discussion>;
-  deleteDiscussion(id: number, authorId: number): Promise<boolean>;
-  likeDiscussion(discussionId: number, studentId: number): Promise<boolean>;
-  unlikeDiscussion(discussionId: number, studentId: number): Promise<boolean>;
-  
-  // Discussion Replies
-  getRepliesByDiscussion(discussionId: number): Promise<DiscussionReply[]>;
-  createReply(reply: InsertDiscussionReply): Promise<DiscussionReply>;
-  
-  // Messages
-  getMessagesBetweenUsers(userId1: number, userId2: number): Promise<Message[]>;
-  createMessage(message: InsertMessage): Promise<Message>;
-  markMessagesAsRead(senderId: number, receiverId: number): Promise<boolean>;
   
   // AI Analysis
   getAnalysisByApplication(applicationId: number): Promise<AIAnalysis | undefined>;
@@ -316,141 +296,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteApplication(id: number): Promise<boolean> {
+    await db.delete(applications).where(eq(applications.id, id));
     const result = await db.delete(applications).where(eq(applications.id, id)).returning();
     return Array.isArray(result) && result.length > 0;
   }
 
-  // Discussions
-  async getDiscussion(id: number): Promise<Discussion | undefined> {
-    const [discussion] = await db.select().from(discussions).where(eq(discussions.id, id)) as Discussion[];
-    return discussion;
-  }
-
- async getDiscussionsByCoordinator(coordinatorId: number): Promise<Discussion[]> {
-  // Get student IDs under this coordinator
-  const studentIds = await db.select({ id: students.id })
-    .from(students)
-    .where(eq(students.coordinatorId, coordinatorId));
-
-  if (studentIds.length === 0) return [];
-
-  const ids = studentIds.map(s => s.id);
-
-  // ✅ FIXED: use inArray instead of ANY
-  return (await db.select().from(discussions)
-    .where(inArray(discussions.authorId, ids))
-    .orderBy(desc(discussions.createdAt))) as Discussion[];
-}
-
-  async createDiscussion(discussion: InsertDiscussion): Promise<Discussion> {
-  const safeDiscussion = {
-    ...discussion,
-    // ✅ Ensure tags is always an array
-    tags: Array.isArray((discussion as any).tags) ? (discussion as any).tags : [],
-  };
-
-  const [created] = await (db
-    .insert(discussions)
-    .values(safeDiscussion)
-    .returning()) as Discussion[];
-
-  return created;
-}
-
-  async likeDiscussion(discussionId: number, studentId: number): Promise<boolean> {
-  // ✅ Check if discussion exists (prevents FK error)
-  const [discussion] = await db.select().from(discussions)
-    .where(eq(discussions.id, discussionId));
-
-  if (!discussion) return false;
-
-  // Check if already liked
-  const [existing] = await db.select().from(discussionLikes)
-    .where(and(
-      eq(discussionLikes.discussionId, discussionId),
-      eq(discussionLikes.studentId, studentId)
-    ));
-
-  if (existing) return false;
-
-  await db.insert(discussionLikes).values({ discussionId, studentId });
-
-  await db.update(discussions)
-    .set({ likesCount: sql`${discussions.likesCount} + 1` })
-    .where(eq(discussions.id, discussionId));
-
-  return true;
-}
-
-  async unlikeDiscussion(discussionId: number, studentId: number): Promise<boolean> {
-    const result = await db.delete(discussionLikes)
-      .where(and(eq(discussionLikes.discussionId, discussionId), eq(discussionLikes.studentId, studentId)))
-      .returning();
-    
-    if (result.length > 0) {
-      await db.update(discussions)
-        .set({ likesCount: sql`${discussions.likesCount} - 1` })
-        .where(eq(discussions.id, discussionId));
-      return true;
-    }
-    return false;
-  }
-
-  async deleteDiscussion(id: number, authorId: number): Promise<boolean> {
-    // First verify that the discussion belongs to the author
-    const [discussion] = await db.select().from(discussions)
-      .where(and(eq(discussions.id, id), eq(discussions.authorId, authorId)));
-    
-    if (!discussion) {
-      return false; // Discussion not found or doesn't belong to author
-    }
-    
-    // Delete the discussion (this will cascade delete replies and likes due to foreign key constraints)
-    const result = await db.delete(discussions)
-      .where(and(eq(discussions.id, id), eq(discussions.authorId, authorId)))
-      .returning();
-    
-    return Array.isArray(result) && result.length > 0;
-  }
-
-  // Discussion Replies
-  async getRepliesByDiscussion(discussionId: number): Promise<DiscussionReply[]> {
-    return db.select().from(discussionReplies)
-      .where(eq(discussionReplies.discussionId, discussionId))
-      .orderBy(asc(discussionReplies.createdAt));
-  }
-
-  async createReply(reply: InsertDiscussionReply): Promise<DiscussionReply> {
-    const [created] = await (db.insert(discussionReplies).values(reply).returning()) as DiscussionReply[];
-    return created;
-  }
-
-  // Messages
-  async getMessagesBetweenUsers(userId1: number, userId2: number): Promise<Message[]> {
-    return (await db.select().from(messages)
-      .where(sql`
-        (${messages.senderId} = ${userId1} AND ${messages.receiverId} = ${userId2})
-        OR (${messages.senderId} = ${userId2} AND ${messages.receiverId} = ${userId1})
-      `)
-      .orderBy(asc(messages.createdAt))) as Message[];
-  }
-
-  async createMessage(message: InsertMessage): Promise<Message> {
-    const [created] = await (db.insert(messages).values(message).returning()) as Message[];
-    return created;
-  }
-
-  async markMessagesAsRead(senderId: number, receiverId: number): Promise<boolean> {
-    await db.update(messages)
-      .set({ isRead: true })
-      .where(and(
-        eq(messages.senderId, senderId),
-        eq(messages.receiverId, receiverId),
-        eq(messages.isRead, false)
-      ));
-    return true;
-  }
-
+  
   // AI Analysis
   async getAnalysisByApplication(applicationId: number): Promise<AIAnalysis | undefined> {
     const [analysis] = await db.select().from(aiAnalyses)
@@ -501,7 +352,7 @@ private async upsertJob(job: NormalizedJob): Promise<void> {
   }
 
   const now = new Date();
-  const region = detectRegion(job); // ✅ NEW
+  const region = detectRegion(job.location || '', job.description || '');
 
   // 🔥 USE IT in upsertJob
   const qualityScore = scoreJob(job);

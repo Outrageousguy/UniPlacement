@@ -81,6 +81,23 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        // Landing page specific colors
+        landing: {
+          // Primary dark blue from header and sidebar
+          "primary-dark": "#0A192F",
+          // Accent gold/yellow for highlights and CTAs
+          accent: "#FFD700",
+          // Success green for scores and positive metrics
+          success: "#4CAF50",
+          // Light background for main content areas
+          "bg-light": "#F8F9FA",
+          // Muted text color
+          "text-muted": "#6C757D",
+          // Card backgrounds
+          "card-bg": "#FFFFFF",
+          // Border colors
+          "border-light": "#E9ECEF",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
