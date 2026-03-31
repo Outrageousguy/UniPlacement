@@ -1,14 +1,6 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -17,8 +9,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import "@/styles/auth.css";
 
 interface LoginFormProps {
   onLogin: (email: string, password: string, role: "coordinator" | "student") => void;
@@ -53,10 +46,88 @@ interface StudentRegisterFormProps {
 const branches = ["CSE", "IT", "ECE", "EEE", "Mechanical", "Civil", "Other"];
 const currentYear = new Date().getFullYear();
 const graduationYears = Array.from({ length: 6 }, (_, i) => currentYear + i);
-const authFieldClass =
-  "border-[rgba(180,140,60,0.25)] focus-visible:ring-[#C8941A] bg-[linear-gradient(135deg,rgba(232,242,255,0.95)_0%,rgba(244,248,255,0.95)_100%)]";
-const authToggleClass =
-  "absolute inset-y-0 right-0 h-auto px-3 text-[#7A6A50] hover:text-[#0F2044] hover:bg-transparent";
+
+function BrandShieldIcon() {
+  return (
+    <svg width={28} height={28} viewBox="0 0 32 32" fill="none" aria-hidden>
+      <path
+        d="M16 4L28 10V18C28 23.5 22.6 28.4 16 30C9.4 28.4 4 23.5 4 18V10L16 4Z"
+        stroke="#E8B84B"
+        strokeWidth={1.5}
+        fill="none"
+      />
+      <path
+        d="M11 16L14.5 19.5L21 13"
+        stroke="#E8B84B"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UserIconRing() {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 12C14.21 12 16 10.21 16 8S14.21 4 12 4 8 5.79 8 8 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z"
+        fill="#E8B84B"
+      />
+    </svg>
+  );
+}
+
+function CoordinatorRegistrationIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke="#E86C2C" strokeWidth={1.8} />
+      <path d="M6 12v5c3.5 2 8.5 2 12 0v-5" stroke="#E86C2C" strokeWidth={1.8} />
+    </svg>
+  );
+}
+
+function StudentRegistrationIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke="#E86C2C" strokeWidth={1.8} />
+      <path d="M6 12v5c3.5 2 8.5 2 12 0v-5" stroke="#E86C2C" strokeWidth={1.8} />
+    </svg>
+  );
+}
+
+function AuthBrandPanel() {
+  return (
+    <div className="auth-left">
+      <div className="auth-left-bg1" />
+      <div className="auth-left-bg2" />
+      <div className="auth-badge-l">MITS Gwalior · T&amp;P Portal</div>
+      <div className="auth-brand-icon">
+        <BrandShieldIcon />
+      </div>
+      <div className="auth-brand-name">UniPlacement</div>
+      <div className="auth-brand-tag">Placement management made simple</div>
+      <div className="auth-gold-line" />
+      <div className="auth-stat-row">
+        <div className="auth-stat">
+          <div className="auth-stat-num">500+</div>
+          <div className="auth-stat-lbl">Students</div>
+        </div>
+        <div className="auth-stat-sep" />
+        <div className="auth-stat">
+          <div className="auth-stat-num">120+</div>
+          <div className="auth-stat-lbl">Companies</div>
+        </div>
+        <div className="auth-stat-sep" />
+        <div className="auth-stat">
+          <div className="auth-stat-num">95%</div>
+          <div className="auth-stat-lbl">Placed</div>
+        </div>
+      </div>
+      <div className="auth-left-foot">UniPlacement · MITS Gwalior</div>
+    </div>
+  );
+}
 
 export function LoginForm({ onLogin, isLoading = false }: LoginFormProps) {
   const [email, setEmail] = useState("");
@@ -79,89 +150,81 @@ export function LoginForm({ onLogin, isLoading = false }: LoginFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto border-[rgba(200,148,26,0.25)] bg-white/95 backdrop-blur-sm shadow-[0_24px_60px_rgba(15,32,68,0.18)]">
-      <CardHeader className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="p-3 rounded-full bg-[rgba(200,148,26,0.14)] border border-[rgba(200,148,26,0.25)]">
-            <GraduationCap className="w-8 h-8 text-[#C8941A]" />
+    <div className="auth-card auth-card--signin">
+      <div className="auth-icon-ring">
+        <UserIconRing />
+      </div>
+      <div className="auth-card-title">Welcome Back</div>
+      <div className="auth-card-sub">Sign in to your T&amp;P Portal account</div>
+      <div className="auth-divider" />
+      <form onSubmit={handleSubmit}>
+        <div className="auth-fg">
+          <Label htmlFor="login-email" className="auth-fl">
+            Email
+          </Label>
+          <Input
+            id="login-email"
+            type="email"
+            placeholder="you@university.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="auth-fi"
+            data-testid="input-login-email"
+          />
+        </div>
+        <div className="auth-fg auth-pw-field">
+          <Label htmlFor="login-password" className="auth-fl">
+            Password
+          </Label>
+          <div className="auth-sw">
+            <Input
+              id="login-password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="auth-fi"
+              data-testid="input-login-password"
+            />
+            <button
+              type="button"
+              className="auth-pw-toggle"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+            </button>
           </div>
         </div>
-        <CardTitle className="text-2xl text-[#0F2044]">Welcome Back</CardTitle>
-        <CardDescription className="text-[#7A6A50]">
-          Sign in to your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="login-email" className="text-[#3D3020]">Email</Label>
-            <Input
-              id="login-email"
-              type="email"
-              placeholder="you@university.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={authFieldClass}
-              data-testid="input-login-email"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="login-password" className="text-[#3D3020]">Password</Label>
-            <div className="relative">
-              <Input
-                id="login-password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={authFieldClass}
-                data-testid="input-login-password"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={authToggleClass}
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-[#3D3020]">Signing in as</Label>
+        <div className="auth-fg">
+          <Label htmlFor="login-role" className="auth-fl">
+            I am a
+          </Label>
+          <div className="auth-sw">
             <Select value={role} onValueChange={(value: "coordinator" | "student") => setRole(value)}>
-              <SelectTrigger className={authFieldClass} data-testid="select-login-role">
+              <SelectTrigger id="login-role" className="auth-fs" data-testid="select-login-role">
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="student">Student</SelectItem>
-                <SelectItem value="coordinator">T&P Coordinator</SelectItem>
+                <SelectItem value="coordinator">Coordinator</SelectItem>
               </SelectContent>
             </Select>
+            <span className="auth-sa">▼</span>
           </div>
-          <Button
-            type="submit"
-            className="w-full bg-[#E8B84B] text-[#0F2044] hover:bg-[#C8941A]"
-            disabled={isLoading}
-            data-testid="button-login"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              "Sign In"
-            )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+        <button type="submit" className="auth-btn" disabled={isLoading} data-testid="button-login">
+          {isLoading ? (
+            <>
+              <Loader2 className="inline h-4 w-4 animate-spin align-middle mr-2" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -210,102 +273,113 @@ export function CoordinatorRegisterForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="coord-name" className="text-[#3D3020]">Full Name</Label>
-        <Input
-          id="coord-name"
-          placeholder="Dr. John Snow"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className={authFieldClass}
-          data-testid="input-coordinator-name"
-        />
+    <div className="auth-card">
+      <div className="auth-icon-ring">
+        <CoordinatorRegistrationIcon />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="coord-email" className="text-[#3D3020]">Email</Label>
-        <Input
-          id="coord-email"
-          type="email"
-          placeholder="coordinator@university.edu"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className={authFieldClass}
-          data-testid="input-coordinator-email"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="coord-university" className="text-[#3D3020]">University Name</Label>
-        <Input
-          id="coord-university"
-          placeholder="Madhav Institute of Technology and Science, Gwalior"
-          value={formData.universityName}
-          onChange={(e) =>
-            setFormData({ ...formData, universityName: e.target.value })
-          }
-          className={authFieldClass}
-          data-testid="input-university-name"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="coord-password" className="text-[#3D3020]">Password</Label>
-        <div className="relative">
-          <Input
-            id="coord-password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Minimum 8 characters"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            className={authFieldClass}
-            data-testid="input-coordinator-password"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={authToggleClass}
-            onClick={() => setShowPassword(!showPassword)}
-          >
-            {showPassword ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-          </Button>
+      <div className="auth-card-title">Coordinator Registration</div>
+      <div className="auth-card-sub">Create a new university T&amp;P account</div>
+      <div className="auth-divider" />
+      <form onSubmit={handleSubmit}>
+        <div className="auth-form-row">
+          <div>
+            <Label htmlFor="coord-name" className="auth-fl">
+              Full Name
+            </Label>
+            <Input
+              id="coord-name"
+              placeholder="Dr. John Smith"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="auth-fi"
+              data-testid="input-coordinator-name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="coord-email" className="auth-fl">
+              Email
+            </Label>
+            <Input
+              id="coord-email"
+              type="email"
+              placeholder="coordinator@university.edu"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="auth-fi"
+              data-testid="input-coordinator-email"
+            />
+          </div>
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="coord-confirm-password" className="text-[#3D3020]">Confirm Password</Label>
-        <Input
-          id="coord-confirm-password"
-          type="password"
-          placeholder="Confirm your password"
-          value={formData.confirmPassword}
-          onChange={(e) =>
-            setFormData({ ...formData, confirmPassword: e.target.value })
-          }
-          className={authFieldClass}
-          data-testid="input-coordinator-confirm-password"
-        />
-      </div>
-      <Button
-        type="submit"
-        className="w-full bg-[#E8B84B] text-[#0F2044] hover:bg-[#C8941A]"
-        disabled={isLoading}
-        data-testid="button-register-coordinator"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Creating Account...
-          </>
-        ) : (
-          "Create Coordinator Account"
-        )}
-      </Button>
-    </form>
+        <div className="auth-fg">
+          <Label htmlFor="coord-university" className="auth-fl">
+            University Name
+          </Label>
+          <Input
+            id="coord-university"
+            placeholder="Madhav Institute of Technology and Science, Gwalior"
+            value={formData.universityName}
+            onChange={(e) => setFormData({ ...formData, universityName: e.target.value })}
+            className="auth-fi"
+            data-testid="input-university-name"
+          />
+        </div>
+        <div className="auth-form-row">
+          <div className="auth-pw-field">
+            <Label htmlFor="coord-password" className="auth-fl">
+              Password
+            </Label>
+            <div className="auth-sw">
+              <Input
+                id="coord-password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Min 8 characters"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="auth-fi"
+                data-testid="input-coordinator-password"
+              />
+              <button
+                type="button"
+                className="auth-pw-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="coord-confirm-password" className="auth-fl">
+              Confirm Password
+            </Label>
+            <Input
+              id="coord-confirm-password"
+              type="password"
+              placeholder="Confirm password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              className="auth-fi"
+              data-testid="input-coordinator-confirm-password"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          className="auth-btn auth-btn--coord"
+          disabled={isLoading}
+          data-testid="button-register-coordinator"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="inline h-4 w-4 animate-spin align-middle mr-2" />
+              Creating Account...
+            </>
+          ) : (
+            "Create Coordinator Account"
+          )}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -330,7 +404,14 @@ export function StudentRegisterForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password || !formData.name || !formData.rollNumber || !formData.branch || !formData.inviteCode) {
+    if (
+      !formData.email ||
+      !formData.password ||
+      !formData.name ||
+      !formData.rollNumber ||
+      !formData.branch ||
+      !formData.inviteCode
+    ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -359,207 +440,227 @@ export function StudentRegisterForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="student-name" className="text-[#3D3020]">Full Name</Label>
+    <div className="auth-card auth-card--student">
+      <div className="auth-icon-ring">
+        <StudentRegistrationIcon />
+      </div>
+      <div className="auth-card-title">Student Registration</div>
+      <div className="auth-card-sub">Join your university&apos;s placement portal</div>
+      <div className="auth-divider" />
+      <form onSubmit={handleSubmit}>
+        <div className="auth-sec-lbl">Personal Info</div>
+        <div className="auth-form-row">
+          <div>
+            <Label htmlFor="student-name" className="auth-fl">
+              Full Name
+            </Label>
+            <Input
+              id="student-name"
+              placeholder="Rahul Sharma"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="auth-fi"
+              data-testid="input-student-name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="student-email" className="auth-fl">
+              Email
+            </Label>
+            <Input
+              id="student-email"
+              type="email"
+              placeholder="rahul@university.edu"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="auth-fi"
+              data-testid="input-student-email"
+            />
+          </div>
+        </div>
+
+        <div className="auth-sec-lbl">Academic Details</div>
+        <div className="auth-form-row">
+          <div>
+            <Label htmlFor="student-roll" className="auth-fl">
+              Roll Number
+            </Label>
+            <Input
+              id="student-roll"
+              placeholder="2021CSE001"
+              value={formData.rollNumber}
+              onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
+              className="auth-fi"
+              data-testid="input-student-roll"
+            />
+          </div>
+          <div>
+            <Label htmlFor="student-branch" className="auth-fl">
+              Branch
+            </Label>
+            <div className="auth-sw">
+              <Select
+                value={formData.branch}
+                onValueChange={(value) => setFormData({ ...formData, branch: value })}
+              >
+                <SelectTrigger id="student-branch" className="auth-fs" data-testid="select-student-branch">
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch} value={branch}>
+                      {branch}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="auth-sa">▼</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="auth-three">
+          <div>
+            <Label htmlFor="student-year" className="auth-fl">
+              Grad Year
+            </Label>
+            <div className="auth-sw">
+              <Select
+                value={formData.graduationYear.toString()}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, graduationYear: parseInt(value, 10) })
+                }
+              >
+                <SelectTrigger id="student-year" className="auth-fs" data-testid="select-graduation-year">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {graduationYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="auth-sa">▼</span>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="student-cgpa" className="auth-fl">
+              CGPA
+            </Label>
+            <Input
+              id="student-cgpa"
+              type="number"
+              step="0.01"
+              min="0"
+              max="10"
+              placeholder="8.50"
+              value={formData.cgpa || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, cgpa: parseFloat(e.target.value) || 0 })
+              }
+              className="auth-fi"
+              data-testid="input-student-cgpa"
+            />
+          </div>
+          <div>
+            <Label htmlFor="student-backlogs" className="auth-fl">
+              Backlogs
+            </Label>
+            <div className="auth-sw">
+              <Select
+                value={formData.activeBacklogs.toString()}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, activeBacklogs: parseInt(value, 10) })
+                }
+              >
+                <SelectTrigger id="student-backlogs" className="auth-fs" data-testid="select-active-backlogs">
+                  <SelectValue placeholder="Select backlogs" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="auth-sa">▼</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="auth-sec-lbl">Account Setup</div>
+        <div className="auth-fg">
+          <Label htmlFor="student-invite" className="auth-fl">
+            University Invite Code
+          </Label>
           <Input
-            id="student-name"
-            placeholder="Rahul Sharma"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={authFieldClass}
-            data-testid="input-student-name"
+            id="student-invite"
+            placeholder="Enter invite code from T&P cell"
+            value={formData.inviteCode}
+            onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
+            className="auth-fi"
+            data-testid="input-invite-code"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="student-email" className="text-[#3D3020]">Email</Label>
-          <Input
-            id="student-email"
-            type="email"
-            placeholder="rahul@university.edu"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className={authFieldClass}
-            data-testid="input-student-email"
-          />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="student-roll" className="text-[#3D3020]">Roll Number</Label>
-          <Input
-            id="student-roll"
-            placeholder="2021CSE001"
-            value={formData.rollNumber}
-            onChange={(e) =>
-              setFormData({ ...formData, rollNumber: e.target.value })
-            }
-            className={authFieldClass}
-            data-testid="input-student-roll"
-          />
+        <div className="auth-form-row">
+          <div className="auth-pw-field">
+            <Label htmlFor="student-password" className="auth-fl">
+              Password
+            </Label>
+            <div className="auth-sw">
+              <Input
+                id="student-password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Min 8 characters"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="auth-fi"
+                data-testid="input-student-password"
+              />
+              <button
+                type="button"
+                className="auth-pw-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="student-confirm-password" className="auth-fl">
+              Confirm Password
+            </Label>
+            <Input
+              id="student-confirm-password"
+              type="password"
+              placeholder="Confirm password"
+              value={formData.confirmPassword}
+              onChange={(e) =>
+                setFormData({ ...formData, confirmPassword: e.target.value })
+              }
+              className="auth-fi"
+              data-testid="input-student-confirm-password"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="student-branch" className="text-[#3D3020]">Branch</Label>
-          <Select
-            value={formData.branch}
-            onValueChange={(value) =>
-              setFormData({ ...formData, branch: value })
-            }
-          >
-            <SelectTrigger className={authFieldClass} data-testid="select-student-branch">
-              <SelectValue placeholder="Select branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((branch) => (
-                <SelectItem key={branch} value={branch}>
-                  {branch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="student-year" className="text-[#3D3020]">Graduation Year</Label>
-          <Select
-            value={formData.graduationYear.toString()}
-            onValueChange={(value) =>
-              setFormData({ ...formData, graduationYear: parseInt(value) })
-            }
-          >
-            <SelectTrigger className={authFieldClass} data-testid="select-graduation-year">
-              <SelectValue placeholder="Select year" />
-            </SelectTrigger>
-            <SelectContent>
-              {graduationYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="student-cgpa" className="text-[#3D3020]">CGPA</Label>
-          <Input
-            id="student-cgpa"
-            type="number"
-            step="0.01"
-            min="0"
-            max="10"
-            placeholder="8.50"
-            value={formData.cgpa || ""}
-            onChange={(e) =>
-              setFormData({ ...formData, cgpa: parseFloat(e.target.value) || 0 })
-            }
-            className={authFieldClass}
-            data-testid="input-student-cgpa"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="student-backlogs" className="text-[#3D3020]">Active Backlogs</Label>
-          <Select
-            value={formData.activeBacklogs.toString()}
-            onValueChange={(value) =>
-              setFormData({ ...formData, activeBacklogs: parseInt(value) })
-            }
-          >
-            <SelectTrigger className={authFieldClass} data-testid="select-active-backlogs">
-              <SelectValue placeholder="Select backlogs">
-                {formData.activeBacklogs}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {[0, 1, 2, 3, 4, 5].map((num) => (
-                <SelectItem key={num} value={num.toString()}>
-                  {num}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="student-invite" className="text-[#3D3020]">University Invite Code</Label>
-        <Input
-          id="student-invite"
-          placeholder="Enter the invite code from your T&P cell"
-          value={formData.inviteCode}
-          onChange={(e) =>
-            setFormData({ ...formData, inviteCode: e.target.value })
-          }
-          className={authFieldClass}
-          data-testid="input-invite-code"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="student-password" className="text-[#3D3020]">Password</Label>
-        <div className="relative">
-          <Input
-            id="student-password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Minimum 8 characters"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            className={authFieldClass}
-            data-testid="input-student-password"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={authToggleClass}
-            onClick={() => setShowPassword(!showPassword)}
-          >
-            {showPassword ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="student-confirm-password" className="text-[#3D3020]">Confirm Password</Label>
-        <Input
-          id="student-confirm-password"
-          type="password"
-          placeholder="Confirm your password"
-          value={formData.confirmPassword}
-          onChange={(e) =>
-            setFormData({ ...formData, confirmPassword: e.target.value })
-          }
-          className={authFieldClass}
-          data-testid="input-student-confirm-password"
-        />
-      </div>
-
-      <Button
-        type="submit"
-        className="w-full bg-[#E8B84B] text-[#0F2044] hover:bg-[#C8941A]"
-        disabled={isLoading}
-        data-testid="button-register-student"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Creating Account...
-          </>
-        ) : (
-          "Create Student Account"
-        )}
-      </Button>
-    </form>
+        <button type="submit" className="auth-btn" disabled={isLoading} data-testid="button-register-student">
+          {isLoading ? (
+            <>
+              <Loader2 className="inline h-4 w-4 animate-spin align-middle mr-2" />
+              Creating Account...
+            </>
+          ) : (
+            "Create Student Account"
+          )}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -568,6 +669,7 @@ export function AuthPage({
   onCoordinatorRegister,
   onStudentRegister,
   isLoading,
+  onBack,
 }: {
   onLogin: (email: string, password: string, role: "coordinator" | "student") => void;
   onCoordinatorRegister: (data: {
@@ -588,60 +690,68 @@ export function AuthPage({
     inviteCode: string;
   }) => void;
   isLoading?: boolean;
+  onBack?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState("login");
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#0F2044] relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(200,148,26,0.18),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(232,108,44,0.14),transparent_45%)] pointer-events-none" />
-      <div className="w-full max-w-4xl relative z-10">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(200,148,26,0.35)] bg-[rgba(200,148,26,0.12)] px-4 py-1.5 text-xs text-[#E8B84B]">
-            MITS Gwalior · T&amp;P Portal
+    <div className="uni-auth">
+      <div className="auth-backdrop" aria-hidden>
+        <div className="auth-backdrop__bubble auth-backdrop__bubble--1" />
+        <div className="auth-backdrop__bubble auth-backdrop__bubble--2" />
+        <div className="auth-backdrop__bubble auth-backdrop__bubble--3" />
+        <div className="auth-backdrop__bubble auth-backdrop__bubble--4" />
+        <div className="auth-backdrop__bubble auth-backdrop__bubble--5" />
+      </div>
+      {onBack ? (
+        <button
+          type="button"
+          className="auth-back"
+          onClick={onBack}
+          data-testid="button-back-to-landing"
+        >
+          <ChevronLeft className="auth-back-icon" aria-hidden />
+          Back
+        </button>
+      ) : null}
+      <div className="auth-shell">
+        <AuthBrandPanel />
+        <div className="auth-right">
+          <div className="auth-right-inner">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="auth-tabs-root flex w-full flex-col items-stretch"
+            >
+              <TabsList className="auth-tabs">
+                <TabsTrigger value="login" className="auth-tab" data-testid="tab-login">
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger value="coordinator" className="auth-tab" data-testid="tab-coordinator">
+                  Coordinator
+                </TabsTrigger>
+                <TabsTrigger value="student" className="auth-tab" data-testid="tab-student">
+                  Student
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="login" className="auth-tab-panel w-full">
+                <div className="auth-panel">
+                  <LoginForm onLogin={onLogin} isLoading={isLoading} />
+                </div>
+              </TabsContent>
+              <TabsContent value="coordinator" className="auth-tab-panel w-full">
+                <div className="auth-panel">
+                  <CoordinatorRegisterForm onRegister={onCoordinatorRegister} isLoading={isLoading} />
+                </div>
+              </TabsContent>
+              <TabsContent value="student" className="auth-tab-panel w-full">
+                <div className="auth-panel">
+                  <StudentRegisterForm onRegister={onStudentRegister} isLoading={isLoading} />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white/10 border border-[rgba(200,148,26,0.25)] h-12 rounded-2xl p-1">
-            <TabsTrigger value="login" className="rounded-xl text-white/80 data-[state=active]:bg-[#E8B84B] data-[state=active]:text-[#0F2044]" data-testid="tab-login">
-              Sign In
-            </TabsTrigger>
-            <TabsTrigger value="coordinator" className="rounded-xl text-white/80 data-[state=active]:bg-[#E8B84B] data-[state=active]:text-[#0F2044]" data-testid="tab-coordinator">
-              Coordinator
-            </TabsTrigger>
-            <TabsTrigger value="student" className="rounded-xl text-white/80 data-[state=active]:bg-[#E8B84B] data-[state=active]:text-[#0F2044]" data-testid="tab-student">
-              Student
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="login" className="mt-6">
-            <LoginForm onLogin={onLogin} isLoading={isLoading} />
-          </TabsContent>
-          <TabsContent value="coordinator" className="mt-6">
-            <Card className="border-[rgba(200,148,26,0.25)] bg-white/95 backdrop-blur-sm shadow-[0_24px_60px_rgba(15,32,68,0.18)]">
-              <CardHeader className="text-center">
-                <CardTitle className="text-xl text-[#0F2044]">Coordinator Registration</CardTitle>
-                <CardDescription>
-                  Create a new T&P Coordinator account
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CoordinatorRegisterForm onRegister={onCoordinatorRegister} isLoading={isLoading} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="student" className="mt-6">
-            <Card className="border-[rgba(200,148,26,0.25)] bg-white/95 backdrop-blur-sm shadow-[0_24px_60px_rgba(15,32,68,0.18)]">
-              <CardHeader className="text-center">
-                <CardTitle className="text-xl text-[#0F2044]">Student Registration</CardTitle>
-                <CardDescription>
-                  Join the T&P portal of MITS Gwalior
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <StudentRegisterForm onRegister={onStudentRegister} isLoading={isLoading} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
     </div>
   );

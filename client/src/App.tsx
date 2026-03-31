@@ -33,7 +33,6 @@ import {
   TrendingUp,
   CheckCircle,
   Plus,
-  GraduationCap,
   Target,
   Clock,
   Copy,
@@ -1138,7 +1137,7 @@ function LandingPage({ onSelectRole }: { onSelectRole: (role: "coordinator" | "s
                     stroke="currentColor"
                     strokeWidth="2.5"
                   >
-                    <path d="M5 12h14M12 5l7 7-7 7" />
+                    <path d="M5 12h14M12 5l7 7-7 7" />  
                   </svg>
                 </button>
               </div>
@@ -1643,23 +1642,13 @@ function AppContent() {
         />
       )}
       {currentView === "auth" && (
-        <div className="relative">
-          <Button
-            variant="ghost"
-            className="absolute top-4 left-4 z-10 flex items-center gap-2 px-2"
-            onClick={() => setCurrentView("landing")}
-            data-testid="button-logo-auth"
-          >
-            <GraduationCap className="w-5 h-5" />
-            <span className="font-semibold">UniPlacement</span>
-          </Button>
-          <AuthPage
-            onLogin={handleLogin}
-            onCoordinatorRegister={handleCoordinatorRegister}
-            onStudentRegister={handleStudentRegister}
-            isLoading={isAuthPending}
-          />
-        </div>
+        <AuthPage
+          onBack={() => setCurrentView("landing")}
+          onLogin={handleLogin}
+          onCoordinatorRegister={handleCoordinatorRegister}
+          onStudentRegister={handleStudentRegister}
+          isLoading={isAuthPending}
+        />
       )}
       {currentView === "coordinator" && authData?.user && <CoordinatorDashboard onLogout={handleLogout} user={authData.user} />}
       {currentView === "student" && <StudentDashboard onLogout={handleLogout} user={authData?.user} />}
