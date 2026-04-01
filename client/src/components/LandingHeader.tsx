@@ -27,9 +27,6 @@ export default function LandingHeader({ onSignIn, onGetStarted }: LandingHeaderP
             <a href="#portals" className="text-gray-300 hover:text-white transition-colors">
               Portals
             </a>
-            <a href="#features" className="text-gray-300 hover:text-white transition-colors">
-              Features
-            </a>
             <a href="#how-it-works" className="text-gray-300 hover:text-white transition-colors">
               How it works
             </a>
