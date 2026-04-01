@@ -817,3 +817,93 @@
 .student-v3-drives-grid.list {
   grid-template-columns: 1fr;
 }
+
+/* ── Student Browse Drives: glassmorphism drive cards (matches navy theme) ── */
+.student-v3-root .student-drive-card.shadcn-card {
+  background: rgba(16, 30, 64, 0.55) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #fff !important;
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease !important;
+}
+
+.student-v3-root .student-drive-card.shadcn-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(232, 160, 36, 0.28) !important;
+  background: rgba(19, 36, 72, 0.78) !important;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(232, 160, 36, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.student-v3-root .student-drive-card h3 {
+  color: #fff !important;
+}
+
+.student-v3-root .student-drive-card .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+.student-v3-root .student-drive-card .rounded-lg.bg-muted,
+.student-v3-root .student-drive-card .bg-muted {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.student-v3-root .student-drive-card .text-muted-foreground svg {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.student-v3-root .student-drive-card .border-border,
+.student-v3-root .student-drive-card .border-t {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Branch chips (outline badges row only) */
+.student-v3-root .student-drive-card .flex.flex-wrap.gap-1 > * {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* Action buttons on glass card */
+.student-v3-root .student-drive-card button[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.student-v3-root .student-drive-card button[class*="outline"]:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(232, 160, 36, 0.35) !important;
+  color: #fff !important;
+}
+
+.student-v3-root .student-drive-card button[class*="bg-primary"]:not([class*="outline"]),
+.student-v3-root .student-drive-card button[data-variant="default"] {
+  background: var(--gold) !important;
+  color: var(--navy-deep) !important;
+  border: none !important;
+}
+
+.student-v3-root .student-drive-card button[class*="bg-primary"]:hover,
+.student-v3-root .student-drive-card button[data-variant="default"]:hover {
+  background: var(--gold-light) !important;
+  color: var(--navy-deep) !important;
+}
+
+/* Softer hover-elevate overlay on buttons inside glass cards */
+.student-v3-root .student-drive-card button.hover-elevate:hover::after {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+}

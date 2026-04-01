@@ -122,7 +122,12 @@ export default function DriveCard({
 
   return (
     <>
-      <Card className="p-5 hover-elevate transition-all duration-150" data-testid={`drive-card-${id}`}>
+      <Card
+        className={`p-5 transition-all duration-200 ${
+          userRole === "student" ? "student-drive-card no-default-hover-elevate" : "hover-elevate"
+        }`}
+        data-testid={`drive-card-${id}`}
+      >
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
