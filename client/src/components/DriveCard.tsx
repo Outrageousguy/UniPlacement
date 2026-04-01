@@ -19,14 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Building2,
-  Calendar,
-  GraduationCap,
-  AlertCircle,
-  IndianRupee,
-  Clock,
-} from "lucide-react";
+import { Building2, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface DriveCardProps {
@@ -47,6 +40,11 @@ interface DriveCardProps {
   onRegister?: (driveId: number, resumeId: number, notes: string) => void;
   onViewDetails?: (driveId: number) => void;
   userRole?: "coordinator" | "student";
+}
+
+function companyInitial(name: string): string {
+  const t = (name || "?").trim();
+  return t ? t.charAt(0).toUpperCase() : "?";
 }
 
 export default function DriveCard({
@@ -74,36 +72,62 @@ export default function DriveCard({
   const [showDetails, setShowDetails] = useState(false);
 
   const isDeadlinePassed = new Date(registrationDeadline) < new Date();
-  const deadlineText = isDeadlinePassed
-    ? "Deadline passed"
-    : `${formatDistanceToNow(new Date(registrationDeadline))} left`;
+  const timeLeftApprox = isDeadlinePassed
+    ? "—"
+    : `~${formatDistanceToNow(new Date(registrationDeadline), { addSuffix: false }).replace(/^about\s+/i, "")}`;
 
-  const getStatusBadge = () => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      Active: "default",
-      Completed: "secondary",
-      Cancelled: "destructive",
-    };
-    return (
-      <Badge variant={variants[status] || "outline"} className="text-xs">
-        {status}
-      </Badge>
-    );
+  const driveStatusPill = () => {
+    if (userRole !== "student") {
+      const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+        Active: "default",
+        Completed: "secondary",
+        Cancelled: "destructive",
+      };
+      return (
+        <Badge variant={variants[status] || "outline"} className="text-xs">
+          {status}
+        </Badge>
+      );
+    }
+    if (status === "Active") {
+      return <span className="student-v3-drive-pill-active">Active</span>;
+    }
+    if (status === "Completed") {
+      return <span className="student-v3-drive-pill-muted">Completed</span>;
+    }
+    return <span className="student-v3-drive-pill-warn">Cancelled</span>;
   };
 
-  const getRegistrationBadge = () => {
-    if (!registrationStatus) return null;
-    const colors: Record<string, string> = {
-      Registered: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      Shortlisted: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      Interview: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      Selected: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      Rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    };
+  const applicationStatusPill = () => {
+    if (!isRegistered) return null;
+    const label = registrationStatus || "Registered";
+    if (userRole !== "student") {
+      const colors: Record<string, string> = {
+        Registered: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+        Shortlisted: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+        Interview: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+        Selected: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+        Rejected: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+      };
+      return (
+        <Badge className={`text-xs ${colors[label] || colors.Registered}`}>
+          {label}
+        </Badge>
+      );
+    }
+    const s = label.toLowerCase();
+    let mod = "";
+    if (s.includes("shortlist")) mod = " shortlisted";
+    else if (s.includes("interview")) mod = " interview";
+    else if (s.includes("select")) mod = " selected";
+    else if (s.includes("reject")) mod = " rejected";
     return (
-      <Badge className={`text-xs ${colors[registrationStatus]}`}>
-        {registrationStatus}
-      </Badge>
+      <span
+        className={`student-v3-drive-pill-app${mod}`}
+        data-testid={`registration-status-${id}`}
+      >
+        {label}
+      </span>
     );
   };
 
@@ -113,12 +137,15 @@ export default function DriveCard({
       return;
     }
     if (onRegister) {
-      onRegister(id, parseInt(selectedResume), notes);
+      onRegister(id, parseInt(selectedResume, 10), notes);
       setShowRegisterDialog(false);
       setSelectedResume("");
       setNotes("");
     }
   };
+
+  const showRegisterButton =
+    userRole === "student" && !isRegistered && !isDeadlinePassed && status === "Active";
 
   return (
     <>
@@ -130,62 +157,76 @@ export default function DriveCard({
       >
         <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <Building2 className="w-5 h-5 text-muted-foreground" />
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={
+                  userRole === "student"
+                    ? "student-v3-dlogo shrink-0 w-11 h-11 text-[15px]"
+                    : "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-base font-bold text-muted-foreground"
+                }
+                aria-hidden
+              >
+                {companyInitial(companyName)}
               </div>
-              <div>
-                <h3 className="font-semibold text-lg" data-testid={`drive-company-${id}`}>
+              <div className="min-w-0">
+                <h3
+                  className="font-semibold text-lg truncate"
+                  data-testid={`drive-company-${id}`}
+                >
                   {companyName}
                 </h3>
-                <p className="text-sm text-muted-foreground">{jobRole}</p>
+                <p className="text-sm text-muted-foreground truncate">{jobRole}</p>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              {getStatusBadge()}
-              {isRegistered && getRegistrationBadge()}
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {driveStatusPill()}
+              {applicationStatusPill()}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <IndianRupee className="w-4 h-4" />
-              <span>
-                {ctcMin} - {ctcMax} LPA
-              </span>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-0.5">Package</div>
+              <div className="text-sm font-medium">
+                ₹ {ctcMin} – {ctcMax} LPA
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <GraduationCap className="w-4 h-4" />
-              <span>Min CGPA: {minCgpa}</span>
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-0.5">Min CGPA</div>
+              <div className="text-sm font-medium">{minCgpa}</div>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <AlertCircle className="w-4 h-4" />
-              <span>Max Backlogs: {maxBacklogs}</span>
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-0.5">Max Backlogs</div>
+              <div className="text-sm font-medium">{maxBacklogs}</div>
             </div>
-            <div
-              className={`flex items-center gap-2 ${
-                isDeadlinePassed ? "text-destructive" : "text-muted-foreground"
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              <span>{deadlineText}</span>
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-0.5">Time Left</div>
+              <div
+                className={`text-sm font-medium ${
+                  isDeadlinePassed ? "text-destructive" : ""
+                }`}
+              >
+                {timeLeftApprox}
+              </div>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {allowedBranches.slice(0, 3).map((branch) => (
+            {allowedBranches.slice(0, 6).map((branch) => (
               <Badge key={branch} variant="outline" className="text-xs">
                 {branch}
               </Badge>
             ))}
-            {allowedBranches.length > 3 && (
+            {allowedBranches.length > 6 && (
               <Badge variant="outline" className="text-xs">
-                +{allowedBranches.length - 3} more
+                +{allowedBranches.length - 6} more
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-border">
+          {/* Intentionally no "Closes &lt;date&gt;" row and no deadline progress bar — details are in View Details / dialog */}
+
+          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
             <Button
               variant="outline"
               size="sm"
@@ -194,7 +235,7 @@ export default function DriveCard({
             >
               View Details
             </Button>
-            {userRole === "student" && !isRegistered && !isDeadlinePassed && status === "Active" && (
+            {showRegisterButton ? (
               <Button
                 size="sm"
                 onClick={() => setShowRegisterDialog(true)}
@@ -202,7 +243,7 @@ export default function DriveCard({
               >
                 Register
               </Button>
-            )}
+            ) : null}
             {userRole === "coordinator" && (
               <Button
                 size="sm"

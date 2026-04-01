@@ -1133,6 +1133,79 @@
   opacity: 0.35;
 }
 
+/* Browse drives — card badges (dark / glass cards) */
+.student-v3-root .student-drive-card .student-v3-drive-pill-active {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-muted {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim);
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-warn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-app {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--gold-border);
+  background: var(--gold-dim);
+  color: var(--gold-light);
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-app.shortlisted {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-app.interview {
+  border-color: rgba(147, 197, 253, 0.35);
+  background: rgba(147, 197, 253, 0.1);
+  color: #93c5fd;
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-app.selected {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.14);
+  color: #86efac;
+}
+
+.student-v3-root .student-drive-card .student-v3-drive-pill-app.rejected {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}
+
 .student-v3-apps-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
