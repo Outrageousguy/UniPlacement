@@ -23,7 +23,6 @@ import StudentTable from "@/components/StudentTable";
 import DriveForm from "@/components/DriveForm";
 import { AuthPage } from "@/components/AuthForms";
 import ResumeManager from "@/components/ResumeManager";
-import AIAnalysis from "@/components/AIAnalysis";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
 import { ExtendedOpportunities } from "@/components/ExtendedOpportunities";
@@ -437,6 +436,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   const [drivesStatusFilter, setDrivesStatusFilter] = useState("All Status");
   const [drivesSortBy, setDrivesSortBy] = useState("Sort: Deadline");
   const [drivesViewMode, setDrivesViewMode] = useState<"grid" | "list">("grid");
+  const [viewStudentDriveId, setViewStudentDriveId] = useState<number | null>(null);
+  const [analyzingApplicationId, setAnalyzingApplicationId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const { data: drives = [] } = useQuery<any[]>({
@@ -581,6 +582,29 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     },
   });
 
+  const analyzeApplicationMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      const res = await apiRequest("POST", "/api/analyze", { applicationId });
+      return res.json();
+    },
+    onMutate: (applicationId) => setAnalyzingApplicationId(applicationId),
+    onSettled: () => setAnalyzingApplicationId(null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/student/applications"] });
+      toast({
+        title: "Analysis complete",
+        description: "Your match score has been updated for this application.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Analysis failed",
+        description: error.message.replace(/^\d+:\s*/, "") || "Could not analyze resume.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Withdraw application mutation
   const withdrawApplicationMutation = useMutation({
     mutationFn: async (applicationId: number) => {
@@ -619,6 +643,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   const activeDrives = drives;
   const activeApplications = applications;
   const activeResumes = resumes;
+  const selectedStudentViewDrive =
+    viewStudentDriveId != null ? drives.find((d: any) => d.id === viewStudentDriveId) : null;
 
   const eligibleDrives = activeDrives.filter((drive: any) => {
     return (
@@ -1188,25 +1214,23 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
         )}
 
         {activeTab === "My Applications" && (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-semibold tracking-tight">My Applications</h1>
-            <ApplicationsTable
-              applications={activeApplications}
-              onWithdraw={async (id) => {
-                try {
-                  await withdrawApplicationMutation.mutateAsync(id);
-                  toast({
-                    title: "Application Withdrawn",
-                    description: "Your application has been withdrawn",
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onViewDrive={(id) => console.log("View drive:", id)}
-              onAnalyze={(id) => console.log("Analyze:", id)}
-            />
-          </div>
+          <ApplicationsTable
+            applications={activeApplications}
+            analyzingApplicationId={analyzingApplicationId}
+            onWithdraw={async (id) => {
+              try {
+                await withdrawApplicationMutation.mutateAsync(id);
+                toast({
+                  title: "Application Withdrawn",
+                  description: "Your application has been withdrawn",
+                });
+              } catch {
+                /* mutation handles toast */
+              }
+            }}
+            onViewDrive={(id) => setViewStudentDriveId(id)}
+            onAnalyze={(id) => analyzeApplicationMutation.mutateAsync(id)}
+          />
         )}
 
         {activeTab === "Resumes" && (
@@ -1259,7 +1283,73 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
           </div>
         )}
 
-        
+        <Dialog open={!!viewStudentDriveId} onOpenChange={(open) => !open && setViewStudentDriveId(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Drive Details</DialogTitle>
+            </DialogHeader>
+            {!selectedStudentViewDrive ? (
+              <div className="text-sm text-muted-foreground">Drive not found.</div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-lg font-semibold">
+                    {selectedStudentViewDrive.companyName} — {selectedStudentViewDrive.jobRole}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Status: {selectedStudentViewDrive.status}</div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">CTC</div>
+                    <div>
+                      {selectedStudentViewDrive.ctcMin} – {selectedStudentViewDrive.ctcMax} LPA
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Min CGPA</div>
+                    <div>{selectedStudentViewDrive.minCgpa}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Max Backlogs</div>
+                    <div>{selectedStudentViewDrive.maxBacklogs}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Deadline</div>
+                    <div>{new Date(selectedStudentViewDrive.registrationDeadline).toLocaleString()}</div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-muted-foreground">Allowed Branches</div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {(selectedStudentViewDrive.allowedBranches || []).map((b: string) => (
+                        <Badge key={b} variant="secondary">
+                          {b}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-muted-foreground">Job Description</div>
+                    <div className="whitespace-pre-wrap mt-1">{selectedStudentViewDrive.jobDescription}</div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setViewStudentDriveId(null)}>
+                    Close
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setViewStudentDriveId(null);
+                      setActiveTab("Drives");
+                    }}
+                  >
+                    Browse drives
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* Resume Viewer Dialog */}
         <Dialog open={!!viewingResume} onOpenChange={(open) => !open && setViewingResume(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
