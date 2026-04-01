@@ -36,8 +36,22 @@ import {
   Target,
   Clock,
   Copy,
+  Search,
+  LayoutDashboard,
+  BriefcaseBusiness,
+  FileText,
+  ExternalLink,
+  BookOpen,
+  Bell,
+  UserCircle2,
+  Settings2,
+  MoreVertical,
+  Upload,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import "./styles/mits-landing.css";
+import "./styles/student-dashboard-v3.css";
 
 function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -416,6 +430,13 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
 function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any }) {
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [viewingResume, setViewingResume] = useState<{ id: number; name: string; content: string } | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [drivesSearch, setDrivesSearch] = useState("");
+  const [drivesBranchFilter, setDrivesBranchFilter] = useState("All Branches");
+  const [drivesCgpaFilter, setDrivesCgpaFilter] = useState("Any CGPA");
+  const [drivesStatusFilter, setDrivesStatusFilter] = useState("All Status");
+  const [drivesSortBy, setDrivesSortBy] = useState("Sort: Deadline");
+  const [drivesViewMode, setDrivesViewMode] = useState<"grid" | "list">("grid");
   const { toast } = useToast();
 
   const { data: drives = [] } = useQuery<any[]>({
@@ -610,92 +631,525 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   });
 
   const registeredDriveIds = activeApplications.map((a: any) => a.driveId);
+  const initials = currentStudent.name
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+  const firstName = currentStudent.name.split(" ")[0] || "Student";
+  const batchShort = (() => {
+    const y = user?.graduationYear;
+    if (typeof y === "number") return `'${String(y).slice(-2)}`;
+    return "Batch";
+  })();
+  const formatShortDate = (dateValue: string | Date) =>
+    new Date(dateValue).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const dashboardEligibleDrives = eligibleDrives.slice(0, 4);
+  const dashboardRecentApplications = activeApplications.slice(0, 3);
+  const dashboardDeadlines = [...eligibleDrives]
+    .sort(
+      (a, b) =>
+        new Date(a.registrationDeadline).getTime() -
+        new Date(b.registrationDeadline).getTime()
+    )
+    .slice(0, 4);
+  const allActiveDrives = activeDrives.filter((d: any) => d.status === "Active");
+  const eligibleDriveCount = allActiveDrives.filter(
+    (drive: any) =>
+      currentStudent.cgpa >= drive.minCgpa &&
+      currentStudent.activeBacklogs <= drive.maxBacklogs &&
+      drive.allowedBranches?.includes(currentStudent.branch)
+  ).length;
+  const registeredDrivesCount = allActiveDrives.filter((drive: any) =>
+    registeredDriveIds.includes(drive.id)
+  ).length;
+  const drivesFiltered = [...allActiveDrives]
+    .filter((drive: any) => {
+      const query = drivesSearch.trim().toLowerCase();
+      if (!query) return true;
+      return (
+        String(drive.companyName).toLowerCase().includes(query) ||
+        String(drive.jobRole).toLowerCase().includes(query)
+      );
+    })
+    .filter((drive: any) => {
+      if (drivesBranchFilter === "All Branches") return true;
+      return (drive.allowedBranches || []).includes(drivesBranchFilter);
+    })
+    .filter((drive: any) => {
+      if (drivesCgpaFilter === "Any CGPA") return true;
+      const min = Number(drivesCgpaFilter.replace("+", ""));
+      return Number(drive.minCgpa) >= min;
+    })
+    .filter((drive: any) => {
+      if (drivesStatusFilter === "All Status") return true;
+      if (drivesStatusFilter === "Registered") return registeredDriveIds.includes(drive.id);
+      return String(drive.status) === drivesStatusFilter;
+    })
+    .sort((a: any, b: any) => {
+      if (drivesSortBy === "Sort: Package ↑") return Number(a.ctcMax) - Number(b.ctcMax);
+      if (drivesSortBy === "Sort: Package ↓") return Number(b.ctcMax) - Number(a.ctcMax);
+      if (drivesSortBy === "Sort: Newest") {
+        return (
+          new Date(b.registrationDeadline).getTime() -
+          new Date(a.registrationDeadline).getTime()
+        );
+      }
+      return (
+        new Date(a.registrationDeadline).getTime() -
+        new Date(b.registrationDeadline).getTime()
+      );
+    });
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        userName={currentStudent.name}
-        userRole="student"
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={onLogout}
-      />
+    <div className="student-v3-root">
+      <aside className="student-v3-sb">
+        <div className="student-v3-logo">
+          <div className="student-v3-logo-icon">U</div>
+          <div>
+            <div className="student-v3-title">UniPlacement</div>
+            <div className="student-v3-subtitle">MITS · T&P Cell</div>
+          </div>
+        </div>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+        <div className="student-v3-search-wrap">
+          <button type="button" className="student-v3-search-btn" onClick={() => setActiveTab("Dashboard")}>
+            <Search className="h-3.5 w-3.5" />
+            <span>Search...</span>
+            <kbd>Cmd+K</kbd>
+          </button>
+        </div>
+
+        <nav className="student-v3-nav">
+          <div className="student-v3-nav-label">Main</div>
+          <button type="button" className={`student-v3-nav-item ${activeTab === "Dashboard" ? "on" : ""}`} onClick={() => setActiveTab("Dashboard")}>
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </button>
+          <button type="button" className={`student-v3-nav-item ${activeTab === "Drives" ? "on" : ""}`} onClick={() => setActiveTab("Drives")}>
+            <BriefcaseBusiness className="h-4 w-4" />
+            Placement Drives
+            <span className="student-v3-badge">{eligibleDrives.length}</span>
+          </button>
+          <button type="button" className={`student-v3-nav-item ${activeTab === "My Applications" ? "on" : ""}`} onClick={() => setActiveTab("My Applications")}>
+            <FileText className="h-4 w-4" />
+            My Applications
+          </button>
+          <button type="button" className={`student-v3-nav-item ${activeTab === "Resumes" ? "on" : ""}`} onClick={() => setActiveTab("Resumes")}>
+            <FileText className="h-4 w-4" />
+            My Resumes
+          </button>
+
+          <div className="student-v3-divider" />
+          <div className="student-v3-nav-label">Explore</div>
+          <button type="button" className={`student-v3-nav-item ${activeTab === "External Opportunities" ? "on" : ""}`} onClick={() => setActiveTab("External Opportunities")}>
+            <ExternalLink className="h-4 w-4" />
+            External Opportunities
+          </button>
+          <button
+            type="button"
+            className="student-v3-nav-item"
+            onClick={() => toast({ title: "Coming soon", description: "Interview Prep will be available soon." })}
+          >
+            <BookOpen className="h-4 w-4" />
+            Interview Prep
+          </button>
+
+          <div className="student-v3-divider" />
+          <div className="student-v3-nav-label">Account</div>
+          <button
+            type="button"
+            className="student-v3-nav-item"
+            onClick={() => toast({ title: "Coming soon", description: "Profile editing is not available yet." })}
+          >
+            <UserCircle2 className="h-4 w-4" />
+            Edit Profile
+          </button>
+          <button
+            type="button"
+            className="student-v3-nav-item"
+            onClick={() => toast({ title: "Coming soon", description: "Settings screen is not available yet." })}
+          >
+            <Settings2 className="h-4 w-4" />
+            Settings
+          </button>
+          <button
+            type="button"
+            className="student-v3-nav-item"
+            onClick={() => toast({ title: "Coming soon", description: "Notifications center is not available yet." })}
+          >
+            <Bell className="h-4 w-4" />
+            Notifications
+            <span className="student-v3-badge">{activeApplications.length}</span>
+          </button>
+        </nav>
+
+        <div className="student-v3-footer">
+          {isProfileMenuOpen && (
+            <div className="student-v3-profile-menu">
+              <button
+                type="button"
+                className="student-v3-profile-item"
+                onClick={() => toast({ title: "Coming soon", description: "Profile page is not available yet." })}
+              >
+                View Profile
+              </button>
+              <button
+                type="button"
+                className="student-v3-profile-item"
+                onClick={() => toast({ title: "Coming soon", description: "Account settings are not available yet." })}
+              >
+                Account Settings
+              </button>
+              <button
+                type="button"
+                className="student-v3-profile-item"
+                onClick={() => toast({ title: "Thanks!", description: "Feedback feature will be enabled soon." })}
+              >
+                Feedback
+              </button>
+              <div className="student-v3-profile-sep" />
+              <button type="button" className="student-v3-profile-item red" onClick={onLogout}>
+                Sign Out
+              </button>
+            </div>
+          )}
+          <div className="student-v3-profile-card">
+            <div className="student-v3-avatar">{initials}</div>
+            <div>
+              <div className="student-v3-profile-name">{currentStudent.name}</div>
+              <div className="student-v3-profile-role">
+                {currentStudent.branch} · {user?.graduationYear || "Batch"}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="student-v3-profile-more"
+              onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="student-v3-main">
+        <div className="student-v3-topbar">
+          <div>
+            <div className="student-v3-topbar-title">{activeTab}</div>
+            <div className="student-v3-topbar-subtitle">
+              {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Placement Season 2025-26
+            </div>
+          </div>
+          <div className="student-v3-topbar-right">
+            <button
+              type="button"
+              className="student-v3-icon-btn"
+              onClick={() => toast({ title: "Coming soon", description: "Notifications panel is not available yet." })}
+            >
+              <Bell className="h-4 w-4" />
+              <span className="student-v3-dot" />
+            </button>
+            <button type="button" className="student-v3-primary-btn" onClick={() => setActiveTab("Resumes")}>
+              <Upload className="h-3.5 w-3.5" />
+              Upload Resume
+            </button>
+          </div>
+        </div>
+
+        <div className="student-v3-content">
         {activeTab === "Dashboard" && (
           <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="student-v3-wb">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight">
-                  Welcome, {currentStudent.name.split(" ")[0]}!
+                <h1>
+                  Welcome back, <em>{firstName}!</em>
                 </h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline">{currentStudent.rollNumber}</Badge>
-                  <Badge variant="outline">{currentStudent.branch}</Badge>
+                <p>
+                  Your placement profile is active · Keep your resume updated to maximise match scores.
+                </p>
+              </div>
+              <div className="student-v3-sp">
+                <div className="student-v3-pill">
+                  <span className="v">{currentStudent.cgpa}</span>
+                  <span className="l">CGPA</span>
+                </div>
+                <div className="student-v3-pill">
+                  <span className="v">{currentStudent.branch}</span>
+                  <span className="l">Branch</span>
+                </div>
+                <div className="student-v3-pill">
+                  <span className="v">{batchShort}</span>
+                  <span className="l">Batch</span>
                 </div>
               </div>
-              <Card className="p-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">CGPA</p>
-                    <p className="font-semibold text-lg">{currentStudent.cgpa}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Backlogs</p>
-                    <p className="font-semibold text-lg">{currentStudent.activeBacklogs}</p>
-                  </div>
+            </div>
+
+            <div className="student-v3-kg">
+              <div className="student-v3-kc">
+                <div className="student-v3-kl">Eligible Drives</div>
+                <div className="student-v3-kv">{eligibleDrives.length}</div>
+                <div className="student-v3-ks">Based on your profile</div>
+              </div>
+              <div className="student-v3-kc">
+                <div className="student-v3-kl">My Applications</div>
+                <div className="student-v3-kv">{activeApplications.length}</div>
+                <div className="student-v3-ks">Active applications</div>
+              </div>
+              <div className="student-v3-kc">
+                <div className="student-v3-kl">Upcoming Deadlines</div>
+                <div className="student-v3-kv">
+                  {
+                    eligibleDrives.filter((d) => {
+                      const days = Math.ceil(
+                        (new Date(d.registrationDeadline).getTime() - Date.now()) /
+                          (1000 * 60 * 60 * 24)
+                      );
+                      return days <= 7;
+                    }).length
+                  }
                 </div>
-              </Card>
+                <div className="student-v3-ks">Within 7 days</div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatsCard
-                title="Eligible Drives"
-                value={eligibleDrives.length}
-                subtitle="Based on your profile"
-                icon={Target}
-                variant="primary"
-              />
-              <StatsCard
-                title="My Applications"
-                value={activeApplications.length}
-                subtitle="Active applications"
-                icon={Building2}
-                variant="secondary"
-              />
-              <StatsCard
-                title="Upcoming Deadlines"
-                value={eligibleDrives.filter((d) => {
-                  const days = Math.ceil(
-                    (new Date(d.registrationDeadline).getTime() - Date.now()) /
-                      (1000 * 60 * 60 * 24)
-                  );
-                  return days <= 7;
-                }).length}
-                subtitle="Within 7 days"
-                icon={Clock}
-                variant="accent"
-              />
+            <div className="student-v3-tc">
+              <div>
+                <div className="student-v3-card">
+                  <div className="student-v3-ch">
+                    <span className="student-v3-ct">
+                      <Clock className="h-3.5 w-3.5" />
+                      Eligible Drives
+                    </span>
+                    <button type="button" className="student-v3-ca" onClick={() => setActiveTab("Drives")}>
+                      View all →
+                    </button>
+                  </div>
+                  {dashboardEligibleDrives.length === 0 ? (
+                    <div className="student-v3-empty">
+                      No eligible drives available
+                      <small>Check back later for new opportunities.</small>
+                    </div>
+                  ) : (
+                    dashboardEligibleDrives.map((drive: any) => (
+                      <div key={drive.id} className="student-v3-dr" onClick={() => setActiveTab("Drives")}>
+                        <div className="student-v3-dr-left">
+                          <div className="student-v3-dlogo">
+                            {String(drive.companyName || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="student-v3-dco">{drive.companyName}</div>
+                            <div className="student-v3-drole">{drive.jobRole}</div>
+                          </div>
+                        </div>
+                        <div className="student-v3-dr-right">
+                          <div className="student-v3-dpkg">
+                            ₹ {Number(drive.ctcMax || drive.ctcMin || 0)} LPA
+                          </div>
+                          <div className="student-v3-ddl">
+                            Closes {formatShortDate(drive.registrationDeadline)}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="student-v3-card">
+                  <div className="student-v3-ch">
+                    <span className="student-v3-ct">
+                      <FileText className="h-3.5 w-3.5" />
+                      Recent Applications
+                    </span>
+                    <button type="button" className="student-v3-ca" onClick={() => setActiveTab("My Applications")}>
+                      All applications →
+                    </button>
+                  </div>
+                  {dashboardRecentApplications.length === 0 ? (
+                    <div className="student-v3-empty">
+                      No applications yet
+                      <small>Apply to eligible drives to see updates here.</small>
+                    </div>
+                  ) : (
+                    <table className="student-v3-at">
+                      <thead>
+                        <tr>
+                          <th>Company</th>
+                          <th>Role</th>
+                          <th>Applied</th>
+                          <th>Status</th>
+                          <th>Match</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboardRecentApplications.map((application: any) => {
+                          const score = Number(application.matchScore || 0);
+                          const status = String(application.status || "Under Review");
+                          const statusClass =
+                            status.toLowerCase().includes("short") ? "student-v3-ss" :
+                            status.toLowerCase().includes("reject") || status.toLowerCase().includes("not") ? "student-v3-srej" :
+                            "student-v3-sr";
+                          return (
+                            <tr key={application.id}>
+                              <td>{application.companyName || "-"}</td>
+                              <td>{application.jobRole || "-"}</td>
+                              <td>{application.createdAt ? formatShortDate(application.createdAt) : "-"}</td>
+                              <td>
+                                <span className={`student-v3-sb2 ${statusClass}`}>{status}</span>
+                              </td>
+                              <td>
+                                <div className="student-v3-mw">
+                                  <span className="student-v3-mp">{score}%</span>
+                                  <div className="student-v3-mt">
+                                    <div className="student-v3-mf" style={{ width: `${Math.max(0, Math.min(score, 100))}%` }} />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="student-v3-card">
+                  <div className="student-v3-ch">
+                    <span className="student-v3-ct">
+                      <Clock className="h-3.5 w-3.5" />
+                      Upcoming Deadlines
+                    </span>
+                  </div>
+                  {dashboardDeadlines.length === 0 ? (
+                    <div className="student-v3-empty">
+                      No upcoming deadlines
+                      <small>Deadlines will appear when drives are active.</small>
+                    </div>
+                  ) : (
+                    dashboardDeadlines.map((drive: any) => {
+                      const days = Math.ceil(
+                        (new Date(drive.registrationDeadline).getTime() - Date.now()) /
+                          (1000 * 60 * 60 * 24)
+                      );
+                      const urgent = days <= 3;
+                      return (
+                        <div key={drive.id} className="student-v3-dli">
+                          <div className="student-v3-dld" style={{ background: urgent ? "#f87171" : "var(--gold)" }} />
+                          <div>
+                            <div className="student-v3-dli-co">{drive.companyName}</div>
+                            <div className="student-v3-dli-role">{drive.jobRole}</div>
+                          </div>
+                          <div className={`student-v3-dli-date ${urgent ? "hot" : ""}`}>
+                            {formatShortDate(drive.registrationDeadline)}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Drives" && (
+          <div>
+            <div className="student-v3-page-top">
+              <div>
+                <div className="student-v3-page-title">Browse Drives</div>
+                <div className="student-v3-drive-count">
+                  {allActiveDrives.length} drives · {eligibleDriveCount} eligible for your profile
+                </div>
+              </div>
+              <div className="student-v3-view-toggle">
+                <button
+                  type="button"
+                  className={`student-v3-vt ${drivesViewMode === "grid" ? "on" : ""}`}
+                  onClick={() => setDrivesViewMode("grid")}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={`student-v3-vt ${drivesViewMode === "list" ? "on" : ""}`}
+                  onClick={() => setDrivesViewMode("list")}
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
-            <div>
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-primary" />
-                Eligible Drives ({eligibleDrives.length})
-              </h2>
-              {eligibleDrives.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="font-medium">No eligible drives available</p>
-                  <p className="text-sm text-muted-foreground">
-                    Check back later for new opportunities
-                  </p>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {eligibleDrives.map((drive) => (
+            <div className="student-v3-filter-strip">
+              <input
+                className="student-v3-fi student-v3-fi-search"
+                type="text"
+                placeholder="Search company or role..."
+                value={drivesSearch}
+                onChange={(e) => setDrivesSearch(e.target.value)}
+              />
+              <select className="student-v3-fi" value={drivesBranchFilter} onChange={(e) => setDrivesBranchFilter(e.target.value)}>
+                <option>All Branches</option>
+                <option>CSE</option>
+                <option>IT</option>
+                <option>EEE</option>
+                <option>ECE</option>
+                <option>ME</option>
+              </select>
+              <select className="student-v3-fi" value={drivesCgpaFilter} onChange={(e) => setDrivesCgpaFilter(e.target.value)}>
+                <option>Any CGPA</option>
+                <option>6.0+</option>
+                <option>7.0+</option>
+                <option>7.5+</option>
+                <option>8.0+</option>
+              </select>
+              <select className="student-v3-fi" value={drivesStatusFilter} onChange={(e) => setDrivesStatusFilter(e.target.value)}>
+                <option>All Status</option>
+                <option>Active</option>
+                <option>Registered</option>
+              </select>
+              <select className="student-v3-fi" value={drivesSortBy} onChange={(e) => setDrivesSortBy(e.target.value)}>
+                <option>Sort: Deadline</option>
+                <option>Sort: Package ↑</option>
+                <option>Sort: Package ↓</option>
+                <option>Sort: Newest</option>
+              </select>
+              {drivesBranchFilter !== "All Branches" && (
+                <button type="button" className="student-v3-active-filter" onClick={() => setDrivesBranchFilter("All Branches")}>
+                  {drivesBranchFilter} ✕
+                </button>
+              )}
+            </div>
+
+            <div className="student-v3-stats-bar">
+              <div className="student-v3-stat-card">
+                <div className="student-v3-sc-label">Total Drives</div>
+                <div className="student-v3-sc-val">{allActiveDrives.length}</div>
+                <div className="student-v3-sc-sub">This season</div>
+              </div>
+              <div className="student-v3-stat-card">
+                <div className="student-v3-sc-label">Eligible for You</div>
+                <div className="student-v3-sc-val">{eligibleDriveCount}</div>
+                <div className="student-v3-sc-sub">Matches your profile</div>
+              </div>
+              <div className="student-v3-stat-card">
+                <div className="student-v3-sc-label">Already Registered</div>
+                <div className="student-v3-sc-val">{registeredDrivesCount}</div>
+                <div className="student-v3-sc-sub">Applications submitted</div>
+              </div>
+            </div>
+
+            <div className={`student-v3-drives-grid ${drivesViewMode === "list" ? "list" : ""}`}>
+              {drivesFiltered.map((drive: any) => {
+                const isEligible =
+                  currentStudent.cgpa >= drive.minCgpa &&
+                  currentStudent.activeBacklogs <= drive.maxBacklogs &&
+                  drive.allowedBranches?.includes(currentStudent.branch);
+                return (
+                  <div key={drive.id} className={!isEligible ? "opacity-60" : ""}>
                     <DriveCard
-                      key={drive.id}
                       {...drive}
                       isRegistered={registeredDriveIds.includes(drive.id)}
                       registrationStatus={
@@ -715,74 +1169,20 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
                       }}
                       userRole="student"
                     />
-                  ))}
+                    {!isEligible && (
+                      <p className="text-xs text-destructive mt-2 text-center">
+                        You do not meet the eligibility criteria for this drive
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+              {drivesFiltered.length === 0 && (
+                <div className="student-v3-empty">
+                  No drives found
+                  <small>Try changing filters or search term.</small>
                 </div>
               )}
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">My Recent Applications</h2>
-              <ApplicationsTable
-                applications={activeApplications.slice(0, 3)}
-                onWithdraw={async (id) => {
-                try {
-                  await withdrawApplicationMutation.mutateAsync(id);
-                  toast({
-                    title: "Application Withdrawn",
-                    description: "Your application has been withdrawn",
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-                onViewDrive={(id) => console.log("View drive:", id)}
-                onAnalyze={(id) => console.log("Analyze:", id)}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "Drives" && (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-semibold tracking-tight">Browse Drives</h1>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {activeDrives
-                .filter((d: any) => d.status === "Active")
-                .map((drive: any) => {
-                  const isEligible =
-                    currentStudent.cgpa >= drive.minCgpa &&
-                    currentStudent.activeBacklogs <= drive.maxBacklogs &&
-                    drive.allowedBranches?.includes(currentStudent.branch);
-                  return (
-                    <div key={drive.id} className={!isEligible ? "opacity-60" : ""}>
-                      <DriveCard
-                        {...drive}
-                        isRegistered={registeredDriveIds.includes(drive.id)}
-                        registrationStatus={
-                          activeApplications.find((a: any) => a.driveId === drive.id)?.status
-                        }
-                        resumes={activeResumes}
-                        onRegister={async (driveId, resumeId, notes) => {
-                          try {
-                            await applyToDriveMutation.mutateAsync({ driveId, resumeId, notes });
-                            toast({
-                              title: "Registration Successful",
-                              description: `You have registered for ${drive.companyName}`,
-                            });
-                          } catch (error) {
-                            // Error handling is done in the mutation
-                          }
-                        }}
-                        userRole="student"
-                      />
-                      {!isEligible && (
-                        <p className="text-xs text-destructive mt-2 text-center">
-                          You do not meet the eligibility criteria for this drive
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
             </div>
           </div>
         )}
@@ -897,6 +1297,7 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </main>
     </div>
   );
