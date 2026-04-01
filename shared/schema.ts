@@ -40,6 +40,38 @@ export const students = pgTable("students", {
   placedPackage: decimal("placed_package", { precision: 5, scale: 2 }),
   coordinatorId: integer("coordinator_id").notNull().references(() => coordinators.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Extended profile (self-service)
+  personalEmail: text("personal_email"),
+  phone: text("phone"),
+  whatsapp: text("whatsapp"),
+  linkedinUrl: text("linkedin_url"),
+  portfolioUrl: text("portfolio_url"),
+  professionalSummary: text("professional_summary"),
+  homeCity: text("home_city"),
+  willingToRelocate: text("willing_to_relocate"),
+  preferredWorkCities: text("preferred_work_cities"),
+  tenthPercentage: decimal("tenth_percentage", { precision: 5, scale: 2 }),
+  twelfthPercentage: decimal("twelfth_percentage", { precision: 5, scale: 2 }),
+  graduationGapYears: text("graduation_gap_years"),
+  placementCategory: text("placement_category"),
+  certificationsText: text("certifications_text"),
+  achievementsText: text("achievements_text"),
+  skillsProgramming: text("skills_programming").array().notNull().default(sql`'{}'::text[]`),
+  skillsFrameworks: text("skills_frameworks").array().notNull().default(sql`'{}'::text[]`),
+  skillsTools: text("skills_tools").array().notNull().default(sql`'{}'::text[]`),
+  preferredRoleType: text("preferred_role_type"),
+  expectedCtcRange: text("expected_ctc_range"),
+  preferredWorkMode: text("preferred_work_mode"),
+  openToInternship: text("open_to_internship"),
+  preferredIndustries: text("preferred_industries"),
+  notifyNewDrives: boolean("notify_new_drives").notNull().default(true),
+  notifyApplicationStatus: boolean("notify_application_status").notNull().default(true),
+  notifyDeadlines: boolean("notify_deadlines").notNull().default(true),
+  notifyInterviewTips: boolean("notify_interview_tips").notNull().default(false),
+  notifyTpAnnouncements: boolean("notify_tp_announcements").notNull().default(true),
+  visibleToRecruiters: boolean("visible_to_recruiters").notNull().default(true),
+  showCgpaOnProfile: boolean("show_cgpa_on_profile").notNull().default(true),
+  showContactToCompanies: boolean("show_contact_to_companies").notNull().default(false),
 }, (table) => ({
   // indexes will be created by database migration
 }));
@@ -326,6 +358,61 @@ export const studentRegisterSchema = insertStudentSchema.extend({
 export type LoginData = z.infer<typeof loginSchema>;
 export type CoordinatorRegisterData = z.infer<typeof coordinatorRegisterSchema>;
 export type StudentRegisterData = z.infer<typeof studentRegisterSchema>;
+
+const optionalUrl = z
+  .union([z.string().url(), z.literal("")])
+  .optional()
+  .transform((v) => (v === "" ? undefined : v));
+
+const optionalEmail = z
+  .union([z.string().email(), z.literal("")])
+  .optional()
+  .transform((v) => (v === "" ? undefined : v));
+
+const stringArray = z.array(z.string().max(80)).max(60);
+
+/** Student self-service profile update (no email / roll / branch / year / cgpa here) */
+export const studentProfilePatchSchema = z
+  .object({
+    firstName: z.string().max(100).optional(),
+    lastName: z.string().max(100).optional(),
+    personalEmail: optionalEmail,
+    phone: z.string().max(32).optional().nullable(),
+    whatsapp: z.string().max(32).optional().nullable(),
+    linkedinUrl: optionalUrl,
+    portfolioUrl: optionalUrl,
+    professionalSummary: z.string().max(4000).optional().nullable(),
+    homeCity: z.string().max(120).optional().nullable(),
+    willingToRelocate: z.string().max(80).optional().nullable(),
+    preferredWorkCities: z.string().max(500).optional().nullable(),
+    activeBacklogs: z.number().int().min(0).max(2).optional(),
+    tenthPercentage: z.number().min(0).max(100).optional().nullable(),
+    twelfthPercentage: z.number().min(0).max(100).optional().nullable(),
+    graduationGapYears: z.string().max(80).optional().nullable(),
+    placementCategory: z.string().max(80).optional().nullable(),
+    certificationsText: z.string().max(8000).optional().nullable(),
+    achievementsText: z.string().max(8000).optional().nullable(),
+    skillsProgramming: stringArray.optional(),
+    skillsFrameworks: stringArray.optional(),
+    skillsTools: stringArray.optional(),
+    preferredRoleType: z.string().max(120).optional().nullable(),
+    expectedCtcRange: z.string().max(80).optional().nullable(),
+    preferredWorkMode: z.string().max(80).optional().nullable(),
+    openToInternship: z.string().max(120).optional().nullable(),
+    preferredIndustries: z.string().max(500).optional().nullable(),
+    notifyNewDrives: z.boolean().optional(),
+    notifyApplicationStatus: z.boolean().optional(),
+    notifyDeadlines: z.boolean().optional(),
+    notifyInterviewTips: z.boolean().optional(),
+    notifyTpAnnouncements: z.boolean().optional(),
+    visibleToRecruiters: z.boolean().optional(),
+    showCgpaOnProfile: z.boolean().optional(),
+    showContactToCompanies: z.boolean().optional(),
+    withdrawPlacement: z.boolean().optional(),
+  })
+  .strict();
+
+export type StudentProfilePatch = z.infer<typeof studentProfilePatchSchema>;
 
 // External opportunities schemas
 export const insertExternalOpportunitySchema = createInsertSchema(externalOpportunities, {

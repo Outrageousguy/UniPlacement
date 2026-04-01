@@ -9,6 +9,7 @@ import {
   loginSchema, 
   coordinatorRegisterSchema, 
   studentRegisterSchema,
+  studentProfilePatchSchema,
   insertDriveSchema,
   insertResumeSchema,
   insertApplicationSchema,
@@ -16,7 +17,8 @@ import {
   students,
   applications,
   resumes,
-  externalOpportunities
+  externalOpportunities,
+  type Student,
 } from "@shared/schema";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
@@ -43,6 +45,7 @@ declare module "express-session" {
       universityName?: string;
       rollNumber?: string;
       branch?: string;
+      graduationYear?: number;
       cgpa?: string;
       activeBacklogs?: number;
       placementStatus?: string;
@@ -50,6 +53,68 @@ declare module "express-session" {
       inviteCode?: string;
     };
   }
+}
+
+function splitStudentName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function omitPassword<S extends { password: string }>(row: S) {
+  const { password: _pw, ...rest } = row;
+  return rest;
+}
+
+function computeProfileCompletion(s: Omit<Student, "password">): number {
+  const checks = [
+    !!(s.personalEmail?.trim()),
+    !!(s.phone?.trim()),
+    !!(s.whatsapp?.trim()),
+    !!(s.linkedinUrl?.trim()),
+    !!(s.portfolioUrl?.trim()),
+    !!(s.professionalSummary?.trim()),
+    !!(s.homeCity?.trim()),
+    !!(s.willingToRelocate?.trim()),
+    !!(s.preferredWorkCities?.trim()),
+    s.tenthPercentage != null && String(s.tenthPercentage).length > 0,
+    s.twelfthPercentage != null && String(s.twelfthPercentage).length > 0,
+    !!(s.graduationGapYears?.trim()),
+    !!(s.placementCategory?.trim()),
+    !!(
+      (s.certificationsText?.trim()) ||
+      (s.achievementsText?.trim())
+    ),
+    (s.skillsProgramming?.length ?? 0) > 0,
+    (s.skillsFrameworks?.length ?? 0) > 0,
+    (s.skillsTools?.length ?? 0) > 0,
+    !!(s.preferredRoleType?.trim()),
+    !!(s.expectedCtcRange?.trim()),
+    !!(s.preferredWorkMode?.trim()),
+    !!(s.openToInternship?.trim()),
+    !!(s.preferredIndustries?.trim()),
+  ];
+  const n = checks.filter(Boolean).length;
+  return checks.length === 0 ? 0 : Math.round((n / checks.length) * 100);
+}
+
+async function setStudentSession(req: Request, student: Student) {
+  const coordinator = await storage.getCoordinator(student.coordinatorId);
+  req.session.user = {
+    id: student.id,
+    email: student.email,
+    name: student.name,
+    role: "student",
+    rollNumber: student.rollNumber,
+    branch: student.branch,
+    graduationYear: student.graduationYear,
+    cgpa: student.cgpa,
+    activeBacklogs: student.activeBacklogs,
+    placementStatus: student.placementStatus,
+    coordinatorId: student.coordinatorId,
+    universityName: coordinator?.universityName,
+  };
 }
 
 // Middleware to check authentication
@@ -207,19 +272,7 @@ export async function registerRoutes(
         coordinatorId: coordinator.id
       });
       
-      // Set session
-      req.session.user = {
-        id: student.id,
-        email: student.email,
-        name: student.name,
-        role: "student",
-        rollNumber: student.rollNumber,
-        branch: student.branch,
-        cgpa: student.cgpa,
-        activeBacklogs: student.activeBacklogs,
-        placementStatus: student.placementStatus,
-        coordinatorId: student.coordinatorId
-      };
+      await setStudentSession(req, student);
       
       res.json({ 
         user: req.session.user,
@@ -272,18 +325,7 @@ export async function registerRoutes(
           return res.status(401).json({ message: "Invalid email or password" });
         }
         
-        req.session.user = {
-          id: student.id,
-          email: student.email,
-          name: student.name,
-          role: "student",
-          rollNumber: student.rollNumber,
-          branch: student.branch,
-          cgpa: student.cgpa,
-          activeBacklogs: student.activeBacklogs,
-          placementStatus: student.placementStatus,
-          coordinatorId: student.coordinatorId
-        };
+        await setStudentSession(req, student);
       }
       
       res.json({ 
@@ -646,7 +688,8 @@ export async function registerRoutes(
       
       // Calculate eligible drives
       const eligibleDrives = drives.filter(d => {
-        return d.status === "Active" &&
+        return student.placementStatus !== "Opted Out" &&
+          d.status === "Active" &&
           parseFloat(student.cgpa) >= parseFloat(d.minCgpa) &&
           student.activeBacklogs <= d.maxBacklogs &&
           d.allowedBranches.some(branch => branch.toLowerCase() === student.branch.toLowerCase()) &&
@@ -674,6 +717,169 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to get stats" });
+    }
+  });
+
+  // Student profile (full record without password)
+  app.get("/api/student/profile", requireStudent, async (req, res) => {
+    try {
+      const studentId = req.session.user!.id;
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+      const pub = omitPassword(student);
+      const names = splitStudentName(pub.name);
+      res.json({
+        ...pub,
+        firstName: names.firstName,
+        lastName: names.lastName,
+        profileCompletion: computeProfileCompletion(pub),
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load profile" });
+    }
+  });
+
+  app.patch("/api/student/profile", requireStudent, async (req, res) => {
+    try {
+      const studentId = req.session.user!.id;
+      const current = await storage.getStudent(studentId);
+      if (!current) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const data = studentProfilePatchSchema.parse(req.body);
+
+      if (data.withdrawPlacement === true && current.placementStatus === "Placed") {
+        return res.status(400).json({
+          message:
+            "You are marked as placed. Contact T&P if you need to change placement status.",
+        });
+      }
+
+      const update: Partial<Student> = {};
+
+      if (data.firstName !== undefined || data.lastName !== undefined) {
+        const { firstName: f0, lastName: l0 } = splitStudentName(current.name);
+        const f = data.firstName !== undefined ? data.firstName : f0;
+        const l = data.lastName !== undefined ? data.lastName : l0;
+        const combined = `${f} ${l}`.trim();
+        if (combined) update.name = combined;
+      }
+
+      const str = (v: string | null | undefined) =>
+        v === undefined ? undefined : v === null ? null : v.trim() === "" ? null : v.trim();
+
+      if (data.personalEmail !== undefined) update.personalEmail = data.personalEmail ?? null;
+      if (data.phone !== undefined) update.phone = str(data.phone);
+      if (data.whatsapp !== undefined) update.whatsapp = str(data.whatsapp);
+      if (data.linkedinUrl !== undefined) update.linkedinUrl = data.linkedinUrl ?? null;
+      if (data.portfolioUrl !== undefined) update.portfolioUrl = data.portfolioUrl ?? null;
+      if (data.professionalSummary !== undefined) {
+        update.professionalSummary = data.professionalSummary === null ? null : str(data.professionalSummary);
+      }
+      if (data.homeCity !== undefined) update.homeCity = str(data.homeCity);
+      if (data.willingToRelocate !== undefined) {
+        update.willingToRelocate = str(data.willingToRelocate);
+      }
+      if (data.preferredWorkCities !== undefined) {
+        update.preferredWorkCities = str(data.preferredWorkCities);
+      }
+      if (data.activeBacklogs !== undefined) update.activeBacklogs = data.activeBacklogs;
+
+      if (data.tenthPercentage !== undefined) {
+        update.tenthPercentage =
+          data.tenthPercentage === null ? null : String(data.tenthPercentage);
+      }
+      if (data.twelfthPercentage !== undefined) {
+        update.twelfthPercentage =
+          data.twelfthPercentage === null ? null : String(data.twelfthPercentage);
+      }
+
+      if (data.graduationGapYears !== undefined) {
+        update.graduationGapYears = str(data.graduationGapYears);
+      }
+      if (data.placementCategory !== undefined) {
+        update.placementCategory = str(data.placementCategory);
+      }
+      if (data.certificationsText !== undefined) {
+        update.certificationsText =
+          data.certificationsText === null ? null : str(data.certificationsText);
+      }
+      if (data.achievementsText !== undefined) {
+        update.achievementsText =
+          data.achievementsText === null ? null : str(data.achievementsText);
+      }
+
+      if (data.skillsProgramming !== undefined) update.skillsProgramming = data.skillsProgramming;
+      if (data.skillsFrameworks !== undefined) update.skillsFrameworks = data.skillsFrameworks;
+      if (data.skillsTools !== undefined) update.skillsTools = data.skillsTools;
+
+      if (data.preferredRoleType !== undefined) {
+        update.preferredRoleType = str(data.preferredRoleType);
+      }
+      if (data.expectedCtcRange !== undefined) {
+        update.expectedCtcRange = str(data.expectedCtcRange);
+      }
+      if (data.preferredWorkMode !== undefined) {
+        update.preferredWorkMode = str(data.preferredWorkMode);
+      }
+      if (data.openToInternship !== undefined) {
+        update.openToInternship = str(data.openToInternship);
+      }
+      if (data.preferredIndustries !== undefined) {
+        update.preferredIndustries = str(data.preferredIndustries);
+      }
+
+      if (data.notifyNewDrives !== undefined) update.notifyNewDrives = data.notifyNewDrives;
+      if (data.notifyApplicationStatus !== undefined) {
+        update.notifyApplicationStatus = data.notifyApplicationStatus;
+      }
+      if (data.notifyDeadlines !== undefined) update.notifyDeadlines = data.notifyDeadlines;
+      if (data.notifyInterviewTips !== undefined) {
+        update.notifyInterviewTips = data.notifyInterviewTips;
+      }
+      if (data.notifyTpAnnouncements !== undefined) {
+        update.notifyTpAnnouncements = data.notifyTpAnnouncements;
+      }
+      if (data.visibleToRecruiters !== undefined) {
+        update.visibleToRecruiters = data.visibleToRecruiters;
+      }
+      if (data.showCgpaOnProfile !== undefined) {
+        update.showCgpaOnProfile = data.showCgpaOnProfile;
+      }
+      if (data.showContactToCompanies !== undefined) {
+        update.showContactToCompanies = data.showContactToCompanies;
+      }
+
+      if (data.withdrawPlacement === true) {
+        update.placementStatus = "Opted Out";
+      }
+
+      const updated = await storage.updateStudent(studentId, update);
+      if (!updated) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      await setStudentSession(req, updated);
+      const pub = omitPassword(updated);
+      const names = splitStudentName(pub.name);
+
+      res.json({
+        profile: {
+          ...pub,
+          firstName: names.firstName,
+          lastName: names.lastName,
+          profileCompletion: computeProfileCompletion(pub),
+        },
+        user: req.session.user,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0]?.message ?? "Invalid data" });
+      }
+      res.status(500).json({ message: "Failed to update profile" });
     }
   });
 
@@ -789,6 +995,12 @@ export async function registerRoutes(
       
       if (student.activeBacklogs > drive.maxBacklogs) {
         return res.status(400).json({ message: "Too many active backlogs" });
+      }
+
+      if (student.placementStatus === "Opted Out") {
+        return res.status(403).json({
+          message: "You have withdrawn from the placement season. Contact T&P to rejoin.",
+        });
       }
       
       if (!drive.allowedBranches.some(branch => branch.toLowerCase() === student.branch.toLowerCase())) {

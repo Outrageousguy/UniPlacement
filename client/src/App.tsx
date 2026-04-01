@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
@@ -26,6 +26,7 @@ import ResumeManager from "@/components/ResumeManager";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
 import { ExtendedOpportunities } from "@/components/ExtendedOpportunities";
+import { StudentEditProfile } from "@/components/StudentEditProfile";
 import {
   Building2,
   Users,
@@ -438,6 +439,7 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   const [drivesViewMode, setDrivesViewMode] = useState<"grid" | "list">("grid");
   const [viewStudentDriveId, setViewStudentDriveId] = useState<number | null>(null);
   const [analyzingApplicationId, setAnalyzingApplicationId] = useState<number | null>(null);
+  const editProfileRef = useRef<{ save: () => Promise<void> } | null>(null);
   const { toast } = useToast();
 
   const { data: drives = [] } = useQuery<any[]>({
@@ -667,8 +669,9 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
 
   const eligibleDrives = activeDrives.filter((drive: any) => {
     return (
+      currentStudent.placementStatus !== "Opted Out" &&
       drive.status === "Active" &&
-      currentStudent.cgpa >= drive.minCgpa &&
+      Number(currentStudent.cgpa) >= Number(drive.minCgpa) &&
       currentStudent.activeBacklogs <= drive.maxBacklogs &&
       drive.allowedBranches?.includes(currentStudent.branch) &&
       new Date(drive.registrationDeadline) > new Date()
@@ -702,7 +705,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
   const allActiveDrives = activeDrives.filter((d: any) => d.status === "Active");
   const eligibleDriveCount = allActiveDrives.filter(
     (drive: any) =>
-      currentStudent.cgpa >= drive.minCgpa &&
+      currentStudent.placementStatus !== "Opted Out" &&
+      Number(currentStudent.cgpa) >= Number(drive.minCgpa) &&
       currentStudent.activeBacklogs <= drive.maxBacklogs &&
       drive.allowedBranches?.includes(currentStudent.branch)
   ).length;
@@ -805,8 +809,8 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
           <div className="student-v3-nav-label">Account</div>
           <button
             type="button"
-            className="student-v3-nav-item"
-            onClick={() => toast({ title: "Coming soon", description: "Profile editing is not available yet." })}
+            className={`student-v3-nav-item ${activeTab === "Edit Profile" ? "on" : ""}`}
+            onClick={() => setActiveTab("Edit Profile")}
           >
             <UserCircle2 className="h-4 w-4" />
             Edit Profile
@@ -836,7 +840,10 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
               <button
                 type="button"
                 className="student-v3-profile-item"
-                onClick={() => toast({ title: "Coming soon", description: "Profile page is not available yet." })}
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setActiveTab("Edit Profile");
+                }}
               >
                 View Profile
               </button>
@@ -882,7 +889,9 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
       <main className="student-v3-main">
         <div className="student-v3-topbar">
           <div>
-            <div className="student-v3-topbar-title">{activeTab}</div>
+            <div className="student-v3-topbar-title">
+              {activeTab === "Edit Profile" ? "Edit Profile" : activeTab}
+            </div>
             <div className="student-v3-topbar-subtitle">
               {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Placement Season 2025-26
             </div>
@@ -896,14 +905,31 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
               <Bell className="h-4 w-4" />
               <span className="student-v3-dot" />
             </button>
-            <button type="button" className="student-v3-primary-btn" onClick={() => setActiveTab("Resumes")}>
-              <Upload className="h-3.5 w-3.5" />
-              Upload Resume
-            </button>
+            {activeTab === "Edit Profile" ? (
+              <button
+                type="button"
+                className="student-v3-primary-btn"
+                onClick={() => void editProfileRef.current?.save()}
+              >
+                Save Changes
+              </button>
+            ) : (
+              <button type="button" className="student-v3-primary-btn" onClick={() => setActiveTab("Resumes")}>
+                <Upload className="h-3.5 w-3.5" />
+                Upload Resume
+              </button>
+            )}
           </div>
         </div>
 
         <div className="student-v3-content">
+        {activeTab === "Edit Profile" && user && (
+          <StudentEditProfile
+            ref={editProfileRef}
+            user={user}
+            eligibleDriveCount={eligibleDriveCount}
+          />
+        )}
         {activeTab === "Dashboard" && (
           <div className="space-y-8">
             <div className="student-v3-wb">
