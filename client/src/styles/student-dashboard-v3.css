@@ -1785,11 +1785,38 @@
   margin: 0;
 }
 
-/* Upload dialog — dark theme */
+/* Upload dialog — dark theme
+   Re-scope shadcn/Tailwind HSL tokens so utilities (text-foreground, bg-primary, etc.)
+   match this panel while the rest of the app stays light. */
 .student-v3-resume-dialog {
-  border-color: var(--rp-border) !important;
-  background: linear-gradient(165deg, #0f1f42 0%, #0a1628 100%) !important;
-  color: var(--rp-text-primary) !important;
+  --button-outline: rgba(255, 255, 255, 0.22);
+  --opaque-button-border-intensity: 6;
+  --background: 222 41% 12%;
+  --foreground: 213 27% 94%;
+  --card: 222 41% 12%;
+  --card-foreground: 213 27% 94%;
+  --card-border: 217 28% 26%;
+  --popover: 222 41% 12%;
+  --popover-foreground: 213 27% 94%;
+  --popover-border: 217 28% 26%;
+  --primary: 38 92% 52%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 213 27% 94%;
+  --muted: 217 33% 18%;
+  --muted-foreground: 215 18% 74%;
+  --accent: 217 33% 22%;
+  --accent-foreground: 213 27% 94%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 28% 28%;
+  --input: 217 28% 28%;
+  --ring: 38 92% 52%;
+  --ring-offset-background: 222 41% 12%;
+
+  border-color: hsl(var(--border)) !important;
+  background: linear-gradient(165deg, #152a52 0%, #0a1628 100%) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .student-v3-resume-dialog .student-v3-resume-dialog-body {
@@ -1800,11 +1827,12 @@
 
 .student-v3-resume-dialog-title {
   font-family: "Sora", sans-serif;
-  color: var(--rp-text-primary) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .student-v3-resume-dialog-desc {
-  color: var(--rp-text-muted) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 1;
 }
 
 .student-v3-resume-drop {
@@ -1835,7 +1863,7 @@
 }
 
 .student-v3-resume-drop-ico.muted {
-  color: var(--rp-text-muted);
+  color: hsl(var(--muted-foreground));
 }
 
 .student-v3-resume-drop-name {
@@ -1851,22 +1879,29 @@
 
 .student-v3-resume-drop-hint {
   font-size: 14px;
-  color: var(--rp-text-muted);
+  color: hsl(var(--muted-foreground));
 }
 
 .student-v3-resume-field label {
-  color: var(--rp-text-secondary);
+  color: hsl(var(--foreground));
+  opacity: 0.92;
 }
 
 .student-v3-resume-input {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid var(--rp-border) !important;
-  color: var(--rp-text-primary) !important;
+  background: hsl(var(--background)) !important;
+  border-color: hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.student-v3-resume-input::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.85;
 }
 
 .student-v3-resume-input:focus-visible {
-  border-color: rgba(245, 158, 11, 0.35) !important;
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+  --ring: 38 92% 52%;
 }
 
 .student-v3-resume-check-row {
@@ -1878,33 +1913,36 @@
 .student-v3-resume-check-label {
   font-size: 14px;
   font-weight: 400;
-  color: var(--rp-text-secondary);
+  color: hsl(var(--foreground));
+  opacity: 0.9;
 }
 
 .student-v3-resume-outline-btn {
-  border-color: var(--rp-border) !important;
-  background: rgba(255, 255, 255, 0.04) !important;
-  color: var(--rp-text-secondary) !important;
+  border-color: hsl(var(--border)) !important;
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: none;
 }
 
 .student-v3-resume-outline-btn:hover {
-  border-color: var(--rp-border-hover) !important;
-  color: var(--rp-text-primary) !important;
-  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: hsl(var(--foreground)) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .student-v3-resume-primary-solid {
-  background: var(--rp-amber) !important;
-  color: var(--rp-navy-900) !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: none !important;
   font-weight: 600;
 }
 
 .student-v3-resume-primary-solid:hover:not(:disabled) {
-  background: var(--rp-amber-light) !important;
+  filter: brightness(1.08);
 }
 
 .student-v3-resume-primary-solid:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .student-v3-resume-dialog-footer {
@@ -1912,11 +1950,23 @@
 }
 
 .student-v3-resume-dialog button[class*="absolute"] {
-  color: var(--rp-text-muted);
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 .student-v3-resume-dialog button[class*="absolute"]:hover {
-  color: var(--rp-text-primary);
+  color: hsl(var(--foreground)) !important;
+}
+
+.student-v3-resume-dialog .student-v3-resume-checkbox {
+  border-color: hsl(var(--border));
+  border-width: 1.5px;
+  background: hsl(var(--background));
+}
+
+.student-v3-resume-dialog .student-v3-resume-checkbox[data-state="checked"] {
+  background-color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
 }
 
 @media (max-width: 900px) {

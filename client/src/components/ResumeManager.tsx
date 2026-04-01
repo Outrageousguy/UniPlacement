@@ -292,6 +292,7 @@ export default function ResumeManager({
             <div className="student-v3-resume-check-row">
               <Checkbox
                 id="is-default"
+                className="student-v3-resume-checkbox"
                 checked={isDefault}
                 onCheckedChange={(checked) => setIsDefault(checked === true)}
                 data-testid="checkbox-set-default"
