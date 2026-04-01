@@ -5,7 +5,6 @@ import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-quer
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -16,8 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Header from "@/components/layout/Header";
-import StatsCard from "@/components/StatsCard";
 import DriveCard from "@/components/DriveCard";
 import StudentTable from "@/components/StudentTable";
 import DriveForm from "@/components/DriveForm";
@@ -28,12 +25,8 @@ import ApplicationsTable from "@/components/ApplicationsTable";
 import DriveManagement from "@/components/DriveManagement";
 import { ExtendedOpportunities } from "@/components/ExtendedOpportunities";
 import {
-  Building2,
   Users,
-  TrendingUp,
-  CheckCircle,
   Plus,
-  Target,
   Clock,
   Copy,
   Search,
@@ -59,6 +52,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
   const [viewDriveId, setViewDriveId] = useState<number | null>(null);
   const [editDriveId, setEditDriveId] = useState<number | null>(null);
   const [completingDriveId, setCompletingDriveId] = useState<number | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: stats } = useQuery<{ activeDrives: number; totalStudents: number; placedStudents: number; placementRate: number; avgPackage: string; inviteCode: string }>({
@@ -176,120 +170,275 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
   const placementRate = stats?.placementRate || 0;
   const avgPackage = stats?.avgPackage || "0";
 
+  const coordinatorName = user?.name || "Coordinator";
+  const coordinatorInitials = coordinatorName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        userName={user?.name || "Coordinator"}
-        userRole="coordinator"
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={onLogout}
-      />
+    <div className="student-v3-root">
+      <aside className="student-v3-sb">
+        <div className="student-v3-logo">
+          <div className="student-v3-logo-icon">U</div>
+          <div>
+            <div className="student-v3-title">UniPlacement</div>
+            <div className="student-v3-subtitle">MITS · T&P Cell</div>
+          </div>
+        </div>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
-        {activeTab === "Dashboard" && (
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-                <p className="text-muted-foreground">Madhav Institute of Technology and Science, Gwalior</p>
-              </div>
-              <Card className="p-4 flex items-center gap-3">
+        <div className="student-v3-search-wrap">
+          <button type="button" className="student-v3-search-btn" onClick={() => setActiveTab("Dashboard")}>
+            <Search className="h-3.5 w-3.5" />
+            <span>Search…</span>
+            <kbd>⌘K</kbd>
+          </button>
+        </div>
+
+        <nav className="student-v3-nav">
+          <div className="student-v3-nav-label">Main</div>
+          <button
+            type="button"
+            className={`student-v3-nav-item ${activeTab === "Dashboard" ? "on" : ""}`}
+            onClick={() => setActiveTab("Dashboard")}
+            data-testid="nav-tab-dashboard"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </button>
+          <button
+            type="button"
+            className={`student-v3-nav-item ${activeTab === "Drives" ? "on" : ""}`}
+            onClick={() => setActiveTab("Drives")}
+            data-testid="nav-tab-drives"
+          >
+            <BriefcaseBusiness className="h-4 w-4" />
+            Placement Drives
+            <span className="student-v3-badge">{activeDrives}</span>
+          </button>
+          <button
+            type="button"
+            className={`student-v3-nav-item ${activeTab === "Students" ? "on" : ""}`}
+            onClick={() => setActiveTab("Students")}
+            data-testid="nav-tab-students"
+          >
+            <Users className="h-4 w-4" />
+            Students
+            <span className="student-v3-badge">{totalStudents}</span>
+          </button>
+        </nav>
+
+        <div className="student-v3-footer">
+          {isProfileMenuOpen && (
+            <div className="student-v3-profile-menu">
+              <button
+                type="button"
+                className="student-v3-profile-item"
+                onClick={() => toast({ title: "Coming soon", description: "Profile page is not available yet." })}
+              >
+                View Profile
+              </button>
+              <button
+                type="button"
+                className="student-v3-profile-item"
+                onClick={() => toast({ title: "Coming soon", description: "Account settings are not available yet." })}
+              >
+                Account Settings
+              </button>
+              <div className="student-v3-profile-sep" />
+              <button type="button" className="student-v3-profile-item red" onClick={onLogout}>
+                Sign Out
+              </button>
+            </div>
+          )}
+          <div className="student-v3-profile-card">
+            <div className="student-v3-avatar">{coordinatorInitials}</div>
+            <div>
+              <div className="student-v3-profile-name">{coordinatorName}</div>
+              <div className="student-v3-profile-role">T&amp;P Coordinator</div>
+            </div>
+            <button type="button" className="student-v3-profile-more" onClick={() => setIsProfileMenuOpen((p) => !p)}>
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="student-v3-main">
+        <div className="student-v3-topbar">
+          <div>
+            <div className="student-v3-topbar-title">{activeTab}</div>
+            <div className="student-v3-topbar-subtitle">
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}{" "}
+              · Placement Season 2025–26
+            </div>
+          </div>
+          <div className="student-v3-topbar-right">
+            <button
+              type="button"
+              className="student-v3-icon-btn"
+              onClick={() => toast({ title: "Coming soon", description: "Notifications panel is not available yet." })}
+            >
+              <Bell className="h-4 w-4" />
+              <span className="student-v3-dot" />
+            </button>
+            {(activeTab === "Dashboard" || activeTab === "Drives") && (
+              <button
+                type="button"
+                className="student-v3-primary-btn"
+                onClick={() => setShowDriveForm(true)}
+                data-testid={activeTab === "Drives" ? "button-new-drive" : "button-post-drive"}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Post New Drive
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="student-v3-content">
+          {activeTab === "Dashboard" && (
+            <div className="space-y-8">
+              <div className="student-v3-page-top">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Student Invite Code</p>
-                  <p className="font-mono font-semibold">{inviteCode}</p>
+                  <div className="student-v3-page-title">Coordinator Dashboard</div>
+                  <div className="student-v3-drive-count">Madhav Institute of Technology and Science, Gwalior</div>
                 </div>
-                <Button size="icon" variant="outline" onClick={copyInviteCode} data-testid="button-copy-invite">
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </Card>
-            </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatsCard title="Active Drives" value={activeDrives} subtitle="Currently recruiting" icon={Building2} variant="primary" />
-              <StatsCard title="Students Placed" value={`${placedStudents}/${totalStudents}`} subtitle={`${placementRate}% placement rate`} icon={CheckCircle} trend={{ value: 12, isPositive: true }} variant="secondary" />
-              <StatsCard title="Total Students" value={totalStudents} subtitle="Registered students" icon={Users} variant="accent" />
-              <StatsCard title="Avg Package" value={`${avgPackage} LPA`} subtitle="This season" icon={TrendingUp} trend={{ value: 15, isPositive: true }} variant="primary" />
-            </div>
+              <div className="coordinator-invite-strip">
+                <div>
+                  <p className="coordinator-invite-label">Student invite code</p>
+                  <p className="coordinator-invite-value font-mono">{inviteCode}</p>
+                </div>
+                <button type="button" className="student-v3-icon-btn shrink-0" onClick={copyInviteCode} data-testid="button-copy-invite">
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
 
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Recent Drives</h2>
-              <Button onClick={() => setShowDriveForm(true)} data-testid="button-post-drive">
-                <Plus className="w-4 h-4 mr-2" />
-                Post New Drive
-              </Button>
-            </div>
+              <div className="student-v3-stats-bar stat-cols-4">
+                <div className="student-v3-stat-card">
+                  <div className="student-v3-sc-label">Active Drives</div>
+                  <div className="student-v3-sc-val" data-testid="stat-value-active-drives">
+                    {activeDrives}
+                  </div>
+                  <div className="student-v3-sc-sub">Currently recruiting</div>
+                </div>
+                <div className="student-v3-stat-card">
+                  <div className="student-v3-sc-label">Students Placed</div>
+                  <div className="student-v3-sc-val" data-testid="stat-value-students-placed">
+                    {placedStudents}/{totalStudents}
+                  </div>
+                  <div className="student-v3-sc-sub">{placementRate}% placement rate</div>
+                  <p className="coordinator-stat-trend coordinator-stat-trend-up">+12%</p>
+                </div>
+                <div className="student-v3-stat-card">
+                  <div className="student-v3-sc-label">Total Students</div>
+                  <div className="student-v3-sc-val" data-testid="stat-value-total-students">
+                    {totalStudents}
+                  </div>
+                  <div className="student-v3-sc-sub">Registered students</div>
+                </div>
+                <div className="student-v3-stat-card">
+                  <div className="student-v3-sc-label">Avg Package</div>
+                  <div className="student-v3-sc-val" data-testid="stat-value-avg-package">
+                    {avgPackage} LPA
+                  </div>
+                  <div className="student-v3-sc-sub">This season</div>
+                  <p className="coordinator-stat-trend coordinator-stat-trend-up">+15%</p>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {drives.length === 0 ? (
-                <Card className="p-6">
-                  <p className="text-sm text-muted-foreground">No drives yet. Click “Post New Drive” to create one.</p>
-                </Card>
-              ) : (
-                drives.slice(0, 4).map((drive: any) => (
-                  <DriveCard
-                    key={drive.id}
-                    {...drive}
-                    userRole="coordinator"
-                    onViewDetails={(id) => {
-                      setActiveTab("Drives");
-                      setViewDriveId(id);
-                    }}
-                  />
-                ))
-              )}
+              <div>
+                <div className="student-v3-ct mb-4">Recent Drives</div>
+                <div className="student-v3-drives-grid">
+                  {drives.length === 0 ? (
+                    <div className="student-v3-empty">
+                      No drives yet.
+                      <small>Click Post New Drive in the header to create one.</small>
+                    </div>
+                  ) : (
+                    drives.slice(0, 4).map((drive: any) => (
+                      <DriveCard
+                        key={drive.id}
+                        {...drive}
+                        userRole="coordinator"
+                        onViewDetails={(id) => {
+                          setActiveTab("Drives");
+                          setViewDriveId(id);
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === "Drives" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-semibold tracking-tight">Manage Drives</h1>
-              <Button onClick={() => setShowDriveForm(true)} data-testid="button-new-drive">
-                <Plus className="w-4 h-4 mr-2" />
-                Post New Drive
-              </Button>
+          {activeTab === "Drives" && (
+            <div className="space-y-6">
+              <div className="student-v3-page-top">
+                <div>
+                  <div className="student-v3-page-title">Manage Drives</div>
+                  <div className="student-v3-drive-count">{drives.length} drives · search and filter below</div>
+                </div>
+              </div>
+              <div className="coordinator-v3-panel">
+                <DriveManagement
+                  drives={drives}
+                  onViewDrive={(id) => setViewDriveId(id)}
+                  onEditDrive={(id) => setEditDriveId(id)}
+                  onCompleteDrive={(id) => {
+                    setCompletingDriveId(id);
+                    completeDriveMutation.mutate(id);
+                  }}
+                  completingDriveId={completingDriveId}
+                  isCompleting={completeDriveMutation.isPending}
+                />
+              </div>
             </div>
-            <DriveManagement
-              drives={drives}
-              onViewDrive={(id) => setViewDriveId(id)}
-              onEditDrive={(id) => setEditDriveId(id)}
-              onCompleteDrive={(id) => {
-                setCompletingDriveId(id);
-                completeDriveMutation.mutate(id);
-              }}
-              completingDriveId={completingDriveId}
-              isCompleting={completeDriveMutation.isPending}
-            />
-          </div>
-        )}
+          )}
 
-        {activeTab === "Students" && (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-semibold tracking-tight">Students</h1>
-            <StudentTable
-              students={students}
-              onViewProfile={() => {
-                toast({
-                  title: "Coming soon",
-                  description: "Student profile view is not available yet.",
-                });
-              }}
-            />
-          </div>
-        )}
+          {activeTab === "Students" && (
+            <div className="space-y-6">
+              <div className="student-v3-page-top">
+                <div>
+                  <div className="student-v3-page-title">Students</div>
+                  <div className="student-v3-drive-count">{students.length} registered students</div>
+                </div>
+              </div>
+              <div className="coordinator-v3-panel">
+                <StudentTable
+                  students={students}
+                  onViewProfile={() => {
+                    toast({
+                      title: "Coming soon",
+                      description: "Student profile view is not available yet.",
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {showDriveForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-background rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Post New Drive</h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowDriveForm(false)}>
+          <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="coordinator-modal-shell w-full max-h-[90vh] overflow-auto">
+              <div className="coordinator-modal-head flex items-center justify-between">
+                <h2 className="coordinator-modal-title">Post New Drive</h2>
+                <Button variant="ghost" size="sm" className="text-white/80 hover:text-white hover:bg-white/10" onClick={() => setShowDriveForm(false)}>
                   Close
                 </Button>
               </div>
-              <div className="p-4">
+              <div className="coordinator-modal-body">
                 <DriveForm
                   onSubmit={(data) => {
                     createDriveMutation.mutate({
@@ -305,6 +454,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
                     });
                   }}
                   isLoading={createDriveMutation.isPending}
+                  variant="mits"
                 />
               </div>
             </div>
@@ -312,7 +462,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
         )}
 
         <Dialog open={!!viewDriveId} onOpenChange={(open) => !open && setViewDriveId(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl coordinator-v3-dialog">
             <DialogHeader>
               <DialogTitle>Drive Details</DialogTitle>
             </DialogHeader>
@@ -381,7 +531,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
         </Dialog>
 
         <Dialog open={!!editDriveId} onOpenChange={(open) => !open && setEditDriveId(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto coordinator-v3-dialog">
             <DialogHeader>
               <DialogTitle>Edit Drive</DialogTitle>
             </DialogHeader>
@@ -418,6 +568,7 @@ function CoordinatorDashboard({ onLogout, user }: { onLogout: () => void; user?:
                   });
                 }}
                 isLoading={updateDriveMutation.isPending}
+                variant="mits"
               />
             )}
           </DialogContent>

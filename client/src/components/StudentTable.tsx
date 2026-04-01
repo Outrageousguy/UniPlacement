@@ -211,7 +211,7 @@ export default function StudentTable({
         open={!!selectedStudent}
         onOpenChange={() => setSelectedStudent(null)}
       >
-        <DialogContent>
+        <DialogContent className="coordinator-v3-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />

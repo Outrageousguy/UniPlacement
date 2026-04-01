@@ -271,7 +271,7 @@ export default function DriveManagement({
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent className="coordinator-v3-dialog">
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete this drive?</AlertDialogTitle>
                               <AlertDialogDescription>

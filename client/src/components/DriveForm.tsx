@@ -14,11 +14,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DriveFormProps {
   onSubmit: (data: DriveFormData) => void;
   initialData?: Partial<DriveFormData>;
   isLoading?: boolean;
+  /** Matches uniplacement browse-drives / drive card styling (navy, gold, DM Sans). */
+  variant?: "default" | "mits";
 }
 
 export interface DriveFormData {
@@ -39,6 +42,7 @@ export default function DriveForm({
   onSubmit,
   initialData,
   isLoading = false,
+  variant = "default",
 }: DriveFormProps) {
   const [formData, setFormData] = useState<DriveFormData>({
     companyName: initialData?.companyName || "",
@@ -104,20 +108,18 @@ export default function DriveForm({
     }));
   };
 
-  return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-xl">Post New Drive</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+  const lab = variant === "mits" ? "drive-form-mits-label" : undefined;
+
+  const formEl = (
+        <form onSubmit={handleSubmit} className={cn("space-y-6", variant === "mits" && "drive-form-mits")}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="companyName">
+              <Label htmlFor="companyName" className={lab}>
                 Company Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="companyName"
+                className={variant === "mits" ? "drive-form-mits-field" : undefined}
                 placeholder="e.g., Google"
                 value={formData.companyName}
                 onChange={(e) =>
@@ -131,11 +133,12 @@ export default function DriveForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jobRole">
+              <Label htmlFor="jobRole" className={lab}>
                 Job Role <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="jobRole"
+                className={variant === "mits" ? "drive-form-mits-field" : undefined}
                 placeholder="e.g., Software Engineer"
                 value={formData.jobRole}
                 onChange={(e) =>
@@ -151,11 +154,12 @@ export default function DriveForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="ctcMin">
+              <Label htmlFor="ctcMin" className={lab}>
                 Minimum CTC (LPA) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="ctcMin"
+                className={variant === "mits" ? "drive-form-mits-field" : undefined}
                 type="number"
                 step="0.5"
                 min="0"
@@ -172,11 +176,12 @@ export default function DriveForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ctcMax">
+              <Label htmlFor="ctcMax" className={lab}>
                 Maximum CTC (LPA) <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="ctcMax"
+                className={variant === "mits" ? "drive-form-mits-field" : undefined}
                 type="number"
                 step="0.5"
                 min="0"
@@ -194,9 +199,10 @@ export default function DriveForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="jobDescription">Job Description</Label>
+            <Label htmlFor="jobDescription" className={lab}>Job Description</Label>
             <Textarea
               id="jobDescription"
+              className={variant === "mits" ? "drive-form-mits-field drive-form-mits-textarea" : undefined}
               placeholder="Describe the role, responsibilities, and requirements..."
               rows={4}
               value={formData.jobDescription}
@@ -213,14 +219,20 @@ export default function DriveForm({
           <div className="space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>
+                <Label className={lab}>
                   Minimum CGPA <span className="text-destructive">*</span>
                 </Label>
-                <span className="text-sm font-medium bg-muted px-2 py-1 rounded">
+                <span
+                  className={cn(
+                    "text-sm font-medium px-2 py-1 rounded",
+                    variant === "mits" ? "drive-form-mits-cgpa-pill" : "bg-muted"
+                  )}
+                >
                   {formData.minCgpa.toFixed(1)}
                 </span>
               </div>
               <Slider
+                className={variant === "mits" ? "drive-form-mits-slider" : undefined}
                 value={[formData.minCgpa]}
                 onValueChange={([value]) =>
                   setFormData({ ...formData, minCgpa: value })
@@ -233,7 +245,7 @@ export default function DriveForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="maxBacklogs">
+              <Label htmlFor="maxBacklogs" className={lab}>
                 Maximum Backlogs Allowed <span className="text-destructive">*</span>
               </Label>
               <Select
@@ -242,10 +254,10 @@ export default function DriveForm({
                   setFormData({ ...formData, maxBacklogs: parseInt(value) })
                 }
               >
-                <SelectTrigger data-testid="select-max-backlogs">
+                <SelectTrigger data-testid="select-max-backlogs" className={variant === "mits" ? "drive-form-mits-trigger" : undefined}>
                   <SelectValue placeholder="Select max backlogs" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={variant === "mits" ? "drive-form-mits-select-content" : undefined}>
                   {[0, 1, 2, 3, 4, 5].map((num) => (
                     <SelectItem key={num} value={num.toString()}>
                       {num === 0 ? "No backlogs" : `Up to ${num} backlog${num > 1 ? "s" : ""}`}
@@ -257,21 +269,25 @@ export default function DriveForm({
           </div>
 
           <div className="space-y-3">
-            <Label>
+            <Label className={lab}>
               Allowed Branches <span className="text-destructive">*</span>
             </Label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className={cn("grid grid-cols-2 md:grid-cols-3 gap-3", variant === "mits" && "drive-form-mits-branches")}>
               {branches.map((branch) => (
                 <div key={branch} className="flex items-center space-x-2">
                   <Checkbox
                     id={`branch-${branch}`}
+                    className={variant === "mits" ? "drive-form-mits-checkbox" : undefined}
                     checked={formData.allowedBranches.includes(branch)}
                     onCheckedChange={() => toggleBranch(branch)}
                     data-testid={`checkbox-branch-${branch.toLowerCase()}`}
                   />
                   <Label
                     htmlFor={`branch-${branch}`}
-                    className="text-sm font-normal cursor-pointer"
+                    className={cn(
+                      "text-sm font-normal cursor-pointer",
+                      variant === "mits" && "drive-form-mits-branch-label"
+                    )}
                   >
                     {branch}
                   </Label>
@@ -284,11 +300,12 @@ export default function DriveForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="registrationDeadline">
+            <Label htmlFor="registrationDeadline" className={lab}>
               Registration Deadline <span className="text-destructive">*</span>
             </Label>
             <Input
               id="registrationDeadline"
+              className={variant === "mits" ? "drive-form-mits-field" : undefined}
               type="datetime-local"
               value={formData.registrationDeadline}
               onChange={(e) =>
@@ -305,7 +322,10 @@ export default function DriveForm({
 
           <Button
             type="submit"
-            className="w-full md:w-auto"
+            className={cn(
+              "w-full md:w-auto",
+              variant === "mits" && "drive-form-mits-submit"
+            )}
             disabled={isLoading}
             data-testid="button-submit-drive"
           >
@@ -319,7 +339,18 @@ export default function DriveForm({
             )}
           </Button>
         </form>
-      </CardContent>
+  );
+
+  if (variant === "mits") {
+    return formEl;
+  }
+
+  return (
+    <Card className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-xl">Post New Drive</CardTitle>
+      </CardHeader>
+      <CardContent>{formEl}</CardContent>
     </Card>
   );
 }

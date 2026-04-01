@@ -251,6 +251,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  backdrop-filter: blur(12px);
 }
 
 .student-v3-topbar-title {
@@ -284,6 +285,10 @@
   cursor: pointer;
 }
 
+.student-v3-icon-btn:hover {
+  background: var(--gold-dim);  
+  color: var(--gold-light);
+}
 .student-v3-dot {
   position: absolute;
   top: 7px;
@@ -311,7 +316,7 @@
 .student-v3-primary-btn:hover {
   transform: scale(1.02);
   transition: all 0.18s ease;
-  box-shadow: 7px 7px 16px rgba(232, 160, 36, 0.15);
+  box-shadow: 7px 7px 10px rgba(232, 160, 36, 0.15);
 }
 
 .student-v3-content {
@@ -838,7 +843,7 @@
 }
 
 .student-v3-root .student-drive-card.shadcn-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-1px);
   border-color: rgba(232, 160, 36, 0.28) !important;
   background: rgba(19, 36, 72, 0.78) !important;
   box-shadow:
@@ -906,4 +911,433 @@
 /* Softer hover-elevate overlay on buttons inside glass cards */
 .student-v3-root .student-drive-card button.hover-elevate:hover::after {
   background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ── Coordinator dashboard (same glass cards as student browse) ── */
+.student-v3-root .coordinator-drive-card.shadcn-card {
+  background: rgba(16, 30, 64, 0.55) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #fff !important;
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease !important;
+}
+
+.student-v3-root .coordinator-drive-card.shadcn-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232, 160, 36, 0.28) !important;
+  background: rgba(19, 36, 72, 0.78) !important;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(232, 160, 36, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.student-v3-root .coordinator-drive-card h3 {
+  color: #fff !important;
+}
+
+.student-v3-root .coordinator-drive-card .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+.student-v3-root .coordinator-drive-card .rounded-lg.bg-muted,
+.student-v3-root .coordinator-drive-card .bg-muted {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.student-v3-root .coordinator-drive-card .text-muted-foreground svg {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.student-v3-root .coordinator-drive-card .border-border,
+.student-v3-root .coordinator-drive-card .border-t {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.student-v3-root .coordinator-drive-card .flex.flex-wrap.gap-1 > * {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.student-v3-root .coordinator-drive-card button[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.student-v3-root .coordinator-drive-card button[class*="outline"]:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(232, 160, 36, 0.35) !important;
+  color: #fff !important;
+}
+
+.student-v3-root .coordinator-drive-card button[class*="bg-primary"]:not([class*="outline"]),
+.student-v3-root .coordinator-drive-card button[data-variant="default"] {
+  background: var(--gold) !important;
+  color: var(--navy-deep) !important;
+  border: none !important;
+}
+
+.student-v3-root .coordinator-drive-card button[class*="bg-primary"]:hover,
+.student-v3-root .coordinator-drive-card button[data-variant="default"]:hover {
+  background: var(--gold-light) !important;
+  color: var(--navy-deep) !important;
+}
+
+.student-v3-root .coordinator-drive-card button.hover-elevate:hover::after {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ── Coordinator: 4-column stats ── */
+.student-v3-stats-bar.stat-cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .student-v3-stats-bar.stat-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.coordinator-stat-trend {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.coordinator-stat-trend-up {
+  color: #4ade80;
+}
+
+.student-v3-root .coordinator-invite-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 18px;
+}
+
+.coordinator-invite-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.coordinator-invite-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+/* Post New Drive modal — matches uniplacement_browse_drives.html .dc / .topbar / .fi */
+.student-v3-root .coordinator-modal-shell {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  color-scheme: dark;
+  width: 50%;
+  height:fit-content;
+}
+
+.student-v3-root .coordinator-modal-shell::before {
+  content: none;
+}
+
+.student-v3-root .coordinator-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 22, 48, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.student-v3-root .coordinator-modal-title {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--white);
+  margin: 0;
+}
+
+.student-v3-root .coordinator-modal-body {
+  padding: 24px 28px;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+/* Drive form fields — .fi / .dm-label / .btn-register from mock */
+.student-v3-root .drive-form-mits-label,
+.drive-form-mits .drive-form-mits-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.student-v3-root .drive-form-mits label span.text-destructive,
+.drive-form-mits label span.text-destructive {
+  color: var(--gold-light) !important;
+  font-weight: 700;
+}
+
+.student-v3-root .drive-form-mits p.text-destructive,
+.drive-form-mits p.text-destructive {
+  color: #f87171 !important;
+}
+
+.student-v3-root .drive-form-mits-field,
+.drive-form-mits-field {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 7px !important;
+  color: var(--white) !important;
+  font-size: 13.5px !important;
+  transition: border-color 0.14s ease;
+}
+
+.student-v3-root .drive-form-mits-field:focus-visible,
+.drive-form-mits-field:focus-visible {
+  border-color: var(--gold-border) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.student-v3-root .drive-form-mits-field::placeholder,
+.drive-form-mits-field::placeholder {
+  color: var(--muted);
+}
+
+.student-v3-root .drive-form-mits-textarea,
+.drive-form-mits-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.student-v3-root .drive-form-mits-trigger,
+.drive-form-mits-trigger {
+  height: auto !important;
+  min-height: 36px;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 7px !important;
+  color: var(--white) !important;
+  font-size: 13.5px !important;
+}
+
+.student-v3-root .drive-form-mits-trigger:focus,
+.drive-form-mits-trigger:focus {
+  border-color: var(--gold-border) !important;
+  box-shadow: none !important;
+}
+
+.drive-form-mits-select-content {
+  background: var(--navy-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 7px !important;
+  color: var(--white) !important;
+}
+
+.drive-form-mits-select-content [data-highlighted] {
+  background: var(--gold-dim) !important;
+  color: var(--white) !important;
+}
+
+.drive-form-mits-select-content [data-state="checked"] {
+  color: var(--white);
+}
+
+.drive-form-mits-select-content [data-slot="select-item-indicator"] {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.student-v3-root .drive-form-mits-cgpa-pill,
+.drive-form-mits-cgpa-pill {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.student-v3-root .drive-form-mits-slider [class*="Track"],
+.drive-form-mits-slider [class*="Track"] {
+  height: 3px !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-radius: 2px;
+}
+
+.student-v3-root .drive-form-mits-slider [class*="Range"],
+.drive-form-mits-slider [class*="Range"] {
+  background: linear-gradient(90deg, var(--gold), var(--gold-light)) !important;
+}
+
+.student-v3-root .drive-form-mits-slider [class*="Thumb"],
+.drive-form-mits-slider [class*="Thumb"] {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid var(--gold) !important;
+  background: var(--navy-card) !important;
+}
+
+.student-v3-root .drive-form-mits-branches,
+.drive-form-mits-branches {
+  gap: 8px 12px;
+}
+
+.student-v3-root .drive-form-mits-branch-label,
+.drive-form-mits-branch-label {
+  color: var(--dim) !important;
+  font-size: 13px !important;
+}
+
+.student-v3-root .drive-form-mits-checkbox,
+.drive-form-mits-checkbox {
+  border-color: var(--border) !important;
+  border-radius: 5px !important;
+}
+
+.student-v3-root .drive-form-mits-checkbox[data-state="checked"],
+.drive-form-mits-checkbox[data-state="checked"] {
+  background: var(--gold-dim) !important;
+  border-color: var(--gold-border) !important;
+  color: var(--gold) !important;
+}
+
+.student-v3-root .drive-form-mits-submit,
+.drive-form-mits-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  background: var(--gold) !important;
+  color: var(--navy-deep) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 10px 18px !important;
+  border-radius: 7px !important;
+  border: none !important;
+  font-family: "DM Sans", sans-serif !important;
+  transition: background 0.14s ease, transform 0.14s ease;
+}
+
+@media (min-width: 768px) {
+  .student-v3-root .drive-form-mits-submit,
+  .drive-form-mits-submit {
+    width: auto;
+    min-width: 160px;
+  }
+}
+
+.student-v3-root .drive-form-mits-submit:hover:not(:disabled),
+.drive-form-mits-submit:hover:not(:disabled) {
+  background: var(--gold-light) !important;
+  color: var(--navy-deep) !important;
+  transform: translateY(-1px);
+}
+
+/* Coordinator tables & filters (inside main app, not portal) */
+.student-v3-root .coordinator-v3-panel [data-slot="input"],
+.student-v3-root .coordinator-v3-panel input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--border) !important;
+  color: #fff !important;
+}
+
+.student-v3-root .coordinator-v3-panel [data-slot="input"]::placeholder,
+.student-v3-root .coordinator-v3-panel input::placeholder {
+  color: var(--muted);
+}
+
+.student-v3-root .coordinator-v3-panel [data-slot="select-trigger"],
+.student-v3-root .coordinator-v3-panel button[role="combobox"] {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--border) !important;
+  color: #fff !important;
+}
+
+.student-v3-root .coordinator-v3-panel .border.rounded-lg {
+  border-color: var(--border) !important;
+  background: rgba(16, 30, 64, 0.35);
+}
+
+.student-v3-root .coordinator-v3-panel thead tr {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.student-v3-root .coordinator-v3-panel th {
+  color: var(--muted) !important;
+  border-color: var(--border) !important;
+}
+
+.student-v3-root .coordinator-v3-panel td {
+  border-color: var(--border) !important;
+  color: var(--dim);
+}
+
+.student-v3-root .coordinator-v3-panel tbody tr {
+  background: transparent !important;
+}
+
+.student-v3-root .coordinator-v3-panel tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.student-v3-root .coordinator-v3-panel .text-muted-foreground {
+  color: var(--muted) !important;
+}
+
+.student-v3-root .coordinator-v3-panel p.text-sm.text-muted-foreground {
+  color: var(--muted) !important;
+}
+
+/* Portaled dialogs (coordinator) */
+.coordinator-v3-dialog {
+  background: #101e40 !important;
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.coordinator-v3-dialog .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+.coordinator-v3-dialog [data-slot="dialog-header"] {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.coordinator-v3-dialog button[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #fff !important;
+}
+
+.coordinator-v3-dialog button[class*="outline"]:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(232, 160, 36, 0.35) !important;
 }

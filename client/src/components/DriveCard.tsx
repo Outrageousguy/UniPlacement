@@ -28,6 +28,7 @@ import {
   Clock,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface DriveCardProps {
   id: number;
@@ -124,7 +125,11 @@ export default function DriveCard({
     <>
       <Card
         className={`p-5 transition-all duration-200 ${
-          userRole === "student" ? "student-drive-card no-default-hover-elevate" : "hover-elevate"
+          userRole === "student"
+            ? "student-drive-card no-default-hover-elevate"
+            : userRole === "coordinator"
+              ? "coordinator-drive-card shadcn-card no-default-hover-elevate"
+              : "hover-elevate"
         }`}
         data-testid={`drive-card-${id}`}
       >
@@ -217,7 +222,7 @@ export default function DriveCard({
       </Card>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className={cn("max-w-2xl", userRole === "coordinator" && "coordinator-v3-dialog")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="w-5 h-5" />
