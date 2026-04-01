@@ -150,9 +150,11 @@ export default function DriveCard({
   return (
     <>
       <Card
-        className={`p-5 transition-all duration-200 ${
-          userRole === "student" ? "student-drive-card no-default-hover-elevate" : "hover-elevate"
-        }`}
+        className={
+          userRole === "student"
+            ? "student-drive-card no-default-hover-elevate student-v3-placement-drive-card"
+            : "p-5 transition-all duration-200 hover-elevate"
+        }
         data-testid={`drive-card-${id}`}
       >
         <div className="space-y-4">

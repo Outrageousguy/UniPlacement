@@ -818,33 +818,53 @@
   grid-template-columns: 1fr;
 }
 
-/* ── Student Browse Drives: glassmorphism drive cards (matches navy theme) ── */
-.student-v3-root .student-drive-card.shadcn-card {
-  background: rgba(16, 30, 64, 0.55) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+/* ── Student Browse Drives: placement drive cards (deep navy + top glow line, no lift) ── */
+.student-v3-root .student-drive-card.student-v3-placement-drive-card.shadcn-card {
+  position: relative;
+  background: #0f1f3d !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  border: 1px solid rgba(255, 200, 100, 0.15) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+  transition: all 0.3s ease-in-out !important;
+  overflow: hidden;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   color: #fff !important;
-  transform: translateZ(0);
-  will-change: transform, box-shadow;
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease,
-    background-color 0.22s ease !important;
+  transform: none !important;
+  will-change: box-shadow;
 }
 
-.student-v3-root .student-drive-card.shadcn-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(232, 160, 36, 0.28) !important;
-  background: rgba(19, 36, 72, 0.78) !important;
+.student-v3-root .student-drive-card.student-v3-placement-drive-card.shadcn-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20px;
+  right: 20px;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 190, 80, 0.9),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  border-radius: 0;
+}
+
+.student-v3-root .student-drive-card.student-v3-placement-drive-card.shadcn-card:hover {
+  transform: none !important;
+  background: #0f1f3d !important;
   box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(232, 160, 36, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 0 25px rgba(255, 190, 80, 0.15),
+    0 10px 40px rgba(0, 0, 0, 0.5) !important;
+  border-color: rgba(255, 190, 80, 0.4) !important;
+}
+
+.student-v3-root .student-drive-card.student-v3-placement-drive-card.shadcn-card:hover::before {
+  opacity: 1;
 }
 
 .student-v3-root .student-drive-card h3 {
