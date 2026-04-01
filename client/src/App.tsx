@@ -479,6 +479,25 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
     }
   };
 
+  const handleDownloadResume = async (resumeId: number) => {
+    try {
+      const response = await apiRequest("GET", `/api/resumes/${resumeId}/content`);
+      const data = await response.json();
+      const resume = activeResumes.find((r) => r.id === resumeId);
+      const link = document.createElement("a");
+      link.href = `data:application/pdf;base64,${data.fileContent}`;
+      link.download = resume?.fileName || `${resume?.name || "resume"}.pdf`;
+      link.click();
+    } catch (error) {
+      console.error("Failed to download resume:", error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download this resume. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1234,47 +1253,45 @@ function StudentDashboard({ onLogout, user }: { onLogout: () => void; user?: any
         )}
 
         {activeTab === "Resumes" && (
-          <div className="space-y-6">
-            <h1 className="text-3xl font-semibold tracking-tight">My Resumes</h1>
-            <ResumeManager
-              resumes={activeResumes}
-              onUpload={async (file, name, isDefault) => {
-                try {
-                  await uploadResumeMutation.mutateAsync({ file, name, isDefault });
-                  toast({
-                    title: "Resume Uploaded",
-                    description: `"${name}" has been uploaded successfully`,
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onDelete={async (id) => {
-                try {
-                  await deleteResumeMutation.mutateAsync(id);
-                  toast({
-                    title: "Resume Deleted Successfully",
-                    description: "The resume has been permanently deleted",
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onSetDefault={async (id) => {
-                try {
-                  await setDefaultResumeMutation.mutateAsync(id);
-                  toast({
-                    title: "Default Resume Updated",
-                    description: "Your default resume has been changed",
-                  });
-                } catch (error) {
-                  // Error handling is done in the mutation
-                }
-              }}
-              onView={handleViewResume}
-              isUploading={uploadResumeMutation.isPending}
-            />
-          </div>
+          <ResumeManager
+            resumes={activeResumes}
+            onUpload={async (file, name, isDefault) => {
+              try {
+                await uploadResumeMutation.mutateAsync({ file, name, isDefault });
+                toast({
+                  title: "Resume Uploaded",
+                  description: `"${name}" has been uploaded successfully`,
+                });
+              } catch (error) {
+                // Error handling is done in the mutation
+              }
+            }}
+            onDelete={async (id) => {
+              try {
+                await deleteResumeMutation.mutateAsync(id);
+                toast({
+                  title: "Resume Deleted Successfully",
+                  description: "The resume has been permanently deleted",
+                });
+              } catch (error) {
+                // Error handling is done in the mutation
+              }
+            }}
+            onSetDefault={async (id) => {
+              try {
+                await setDefaultResumeMutation.mutateAsync(id);
+                toast({
+                  title: "Default Resume Updated",
+                  description: "Your default resume has been changed",
+                });
+              } catch (error) {
+                // Error handling is done in the mutation
+              }
+            }}
+            onView={handleViewResume}
+            onDownload={handleDownloadResume}
+            isUploading={uploadResumeMutation.isPending}
+          />
         )}
 
         {activeTab === "External Opportunities" && (
